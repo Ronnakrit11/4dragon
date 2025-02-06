@@ -61,6 +61,7 @@ export default function DashboardLayout({
       { href: '/dashboard/set-price', icon: Settings, label: 'กำหนดราคา' },
       { href: '/dashboard/customers', icon: UserCircle, label: 'ลูกค้าทั้งหมด' },
       { href: '/dashboard/transactions-history', icon: FileText, label: 'รายการซื้อขายทอง' },
+      { href: '/dashboard/gold-stock', icon: Package, label: 'จัดการสต๊อกทอง' },
       { href: '/dashboard/savings-summary', icon: PiggyBank, label: 'สรุปการออม' },
       { href: '/dashboard/withdraw-money-requests', icon: BanknoteIcon, label: 'รายการขอถอนเงิน' },
       { href: '/dashboard/withdraw-list', icon: ClipboardList, label: 'รายการขอรับทอง' },
@@ -139,7 +140,7 @@ export default function DashboardLayout({
       >
         <div className="flex h-16 items-center gap-2 border-b px-6 py-4 ${isDark ? 'border-[#222222]' : 'border-gray-200'}">
           <Image
-            src="/Ar-logo2.JPG"
+            src="/Ar-logo2.png"
             alt="Logo"
             width={140}
             height={40}
