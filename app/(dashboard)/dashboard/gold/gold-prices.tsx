@@ -47,6 +47,17 @@ interface TransactionSummary {
   previousTotalCost?: number;
 }
 
+// Function to calculate adjusted price based on amount
+function calculateAdjustedPrice(basePrice: number, totalAmount: number): number {
+  if (totalAmount <= 10000) {
+    return basePrice; // Use default price for amounts up to 10,000
+  } else if (totalAmount <= 40000) {
+    return basePrice * 0.9995; // 99.95% of default price for amounts 10,001-40,000
+  } else {
+    return basePrice * 0.9975; // 99.75% of default price for amounts over 40,000
+  }
+}
+
 export function GoldPrices() {
   const { theme } = useTheme();
   const [prices, setPrices] = useState<GoldPrice[]>([]);
@@ -169,10 +180,12 @@ export function GoldPrices() {
     setIsBuyProcessing(true);
   
     try {
-      const pricePerUnit = typeof selectedPrice.ask === 'string' ? 
+      const baseAskPrice = typeof selectedPrice.ask === 'string' ? 
         parseFloat(selectedPrice.ask) : selectedPrice.ask;
       
-      const units = moneyNum / pricePerUnit;
+      // Calculate adjusted price based on amount
+      const adjustedPrice = calculateAdjustedPrice(baseAskPrice, moneyNum);
+      const units = moneyNum / adjustedPrice;
       const goldType = "ทอง 96.5%";
   
       const response = await fetch('/api/transactions', {
@@ -181,7 +194,7 @@ export function GoldPrices() {
         body: JSON.stringify({
           goldType,
           amount: units,
-          pricePerUnit,
+          pricePerUnit: adjustedPrice,
           totalPrice: moneyNum,
           type: 'buy'
         })
@@ -198,7 +211,7 @@ export function GoldPrices() {
       setTransactionSummary({
         goldType,
         units,
-        price: pricePerUnit,
+        price: adjustedPrice,
         total: moneyNum,
         averageCost: data.averageCost || 0,
         totalCost: data.totalCost || 0
@@ -221,9 +234,13 @@ export function GoldPrices() {
   
     try {
       const bathAmount = calculateBaht(Number(sellUnits));
-      const pricePerUnit = typeof selectedPrice.bid === 'string' ? 
+      const baseBidPrice = typeof selectedPrice.bid === 'string' ? 
         parseFloat(selectedPrice.bid) : selectedPrice.bid;
-      const totalAmount = Number(bathAmount) * pricePerUnit;
+      
+      // Calculate total amount and adjusted price
+      const totalAmount = Number(bathAmount);
+      const adjustedPrice = calculateAdjustedPrice(baseBidPrice, totalAmount * baseBidPrice);
+      const finalTotal = totalAmount * adjustedPrice;
       const goldType = "ทอง 96.5%";
   
       const response = await fetch('/api/transactions', {
@@ -234,8 +251,8 @@ export function GoldPrices() {
         body: JSON.stringify({
           goldType,
           amount: bathAmount,
-          pricePerUnit,
-          totalPrice: totalAmount,
+          pricePerUnit: adjustedPrice,
+          totalPrice: finalTotal,
           type: 'sell'
         })
       });
@@ -251,8 +268,8 @@ export function GoldPrices() {
       setTransactionSummary({
         goldType,
         units: Number(bathAmount),
-        price: pricePerUnit,
-        total: totalAmount,
+        price: adjustedPrice,
+        total: finalTotal,
         isSell: true,
         averageCost: data.averageCost || 0,
         totalCost: data.totalCost || 0,
