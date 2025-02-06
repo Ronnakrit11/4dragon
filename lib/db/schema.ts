@@ -8,8 +8,9 @@ import {
   decimal,
   boolean,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, type InferSelectModel } from 'drizzle-orm';
 
+// Define users table first since it's referenced by other tables
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }),
@@ -23,6 +24,18 @@ export const users = pgTable('users', {
   deletedAt: timestamp('deleted_at'),
 });
 
+// Now we can safely reference the users table
+export const depositLimits = pgTable('deposit_limits', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  dailyLimit: decimal('daily_limit').notNull(),
+  monthlyLimit: decimal('monthly_limit').notNull(),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Rest of your schema definitions...
 export const teams = pgTable('teams', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull(),
@@ -70,18 +83,6 @@ export const invitations = pgTable('invitations', {
     .references(() => users.id),
   invitedAt: timestamp('invited_at').notNull().defaultNow(),
   status: varchar('status', { length: 20 }).notNull().default('pending'),
-});
-
-export const depositLimits = pgTable('deposit_limits', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull(),
-  dailyLimit: decimal('daily_limit').notNull(),
-  monthlyLimit: decimal('monthly_limit').notNull(),
-  createdBy: integer('created_by')
-    .notNull()
-    .references(() => users.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
 export const markupSettings = pgTable('markup_settings', {
@@ -335,39 +336,39 @@ export const depositLimitsRelations = relations(depositLimits, ({ one }) => ({
 }));
 
 // Types
-export type User = typeof users.$inferSelect;
+export type User = InferSelectModel<typeof users>;
 export type NewUser = typeof users.$inferInsert;
-export type Team = typeof teams.$inferSelect;
+export type Team = InferSelectModel<typeof teams>;
 export type NewTeam = typeof teams.$inferInsert;
-export type TeamMember = typeof teamMembers.$inferSelect;
+export type TeamMember = InferSelectModel<typeof teamMembers>;
 export type NewTeamMember = typeof teamMembers.$inferInsert;
-export type ActivityLog = typeof activityLogs.$inferSelect;
+export type ActivityLog = InferSelectModel<typeof activityLogs>;
 export type NewActivityLog = typeof activityLogs.$inferInsert;
-export type Invitation = typeof invitations.$inferSelect;
+export type Invitation = InferSelectModel<typeof invitations>;
 export type NewInvitation = typeof invitations.$inferInsert;
-export type MarkupSetting = typeof markupSettings.$inferSelect;
+export type MarkupSetting = InferSelectModel<typeof markupSettings>;
 export type NewMarkupSetting = typeof markupSettings.$inferInsert;
-export type SocialSetting = typeof socialSettings.$inferSelect;
+export type SocialSetting = InferSelectModel<typeof socialSettings>;
 export type NewSocialSetting = typeof socialSettings.$inferInsert;
-export type VerifiedSlip = typeof verifiedSlips.$inferSelect;
+export type VerifiedSlip = InferSelectModel<typeof verifiedSlips>;
 export type NewVerifiedSlip = typeof verifiedSlips.$inferInsert;
-export type UserBalance = typeof userBalances.$inferSelect;
+export type UserBalance = InferSelectModel<typeof userBalances>;
 export type NewUserBalance = typeof userBalances.$inferInsert;
-export type GoldAsset = typeof goldAssets.$inferSelect;
+export type GoldAsset = InferSelectModel<typeof goldAssets>;
 export type NewGoldAsset = typeof goldAssets.$inferInsert;
-export type Transaction = typeof transactions.$inferSelect;
+export type Transaction = InferSelectModel<typeof transactions>;
 export type NewTransaction = typeof transactions.$inferInsert;
-export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
+export type WithdrawalRequest = InferSelectModel<typeof withdrawalRequests>;
 export type NewWithdrawalRequest = typeof withdrawalRequests.$inferInsert;
-export type BankAccount = typeof bankAccounts.$inferSelect;
+export type BankAccount = InferSelectModel<typeof bankAccounts>;
 export type NewBankAccount = typeof bankAccounts.$inferInsert;
-export type WithdrawalMoneyRequest = typeof withdrawalMoneyRequests.$inferSelect;
+export type WithdrawalMoneyRequest = InferSelectModel<typeof withdrawalMoneyRequests>;
 export type NewWithdrawalMoneyRequest = typeof withdrawalMoneyRequests.$inferInsert;
-export type ProductCategory = typeof productCategories.$inferSelect;
+export type ProductCategory = InferSelectModel<typeof productCategories>;
 export type NewProductCategory = typeof productCategories.$inferInsert;
-export type GoldProduct = typeof goldProducts.$inferSelect;
+export type GoldProduct = InferSelectModel<typeof goldProducts>;
 export type NewGoldProduct = typeof goldProducts.$inferInsert;
-export type DepositLimit = typeof depositLimits.$inferSelect;
+export type DepositLimit = InferSelectModel<typeof depositLimits>;
 export type NewDepositLimit = typeof depositLimits.$inferInsert;
 export type TeamDataWithMembers = Team & {
   teamMembers: (TeamMember & {

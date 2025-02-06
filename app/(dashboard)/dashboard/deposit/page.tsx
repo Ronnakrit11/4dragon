@@ -67,7 +67,7 @@ export default function DepositPage() {
         }
 
         // Fetch user's deposit limit
-        const limitResponse = await fetch('/api/users/deposit-limit');
+        const limitResponse = await fetch('/api/user/deposit-limit');
         if (limitResponse.ok) {
           const limitData = await limitResponse.json();
           setDepositLimit(limitData);
@@ -92,8 +92,11 @@ export default function DepositPage() {
 
     // Check if amount exceeds remaining limit
     if (depositLimit) {
-      const remainingLimit = Number(depositLimit.dailyLimit) - balance;
-      if (Number(amount) > remainingLimit) {
+      const amountNum = Number(amount);
+      const dailyLimit = Number(depositLimit.dailyLimit);
+      const remainingLimit = dailyLimit - balance;
+
+      if (amountNum > remainingLimit) {
         toast.error('ไม่สามารถเพิ่มเงินได้');
         return;
       }
@@ -206,10 +209,10 @@ export default function DepositPage() {
     });
   }
 
-  // Calculate remaining deposit limit
+  // Calculate remaining deposit limit and validation states
   const remainingLimit = depositLimit ? Number(depositLimit.dailyLimit) - balance : 0;
-  const canDeposit = depositLimit && Number(amount) <= remainingLimit;
-  const showLimitError = amount && !canDeposit;
+  const canDeposit = Boolean(depositLimit && Number(amount) <= remainingLimit);
+  const showLimitError = Boolean(amount) && !canDeposit;
 
   return (
     <section className="flex-1 p-4 lg:p-8">
@@ -270,7 +273,7 @@ export default function DepositPage() {
                             : ''
                       }`}
                       onClick={() => setSelectedMethod(method.id)}
-                      disabled={showLimitError}
+                      disabled={Boolean(showLimitError)}
                     >
                       <div className="flex items-center space-x-4 w-full">
                         <Image 
@@ -300,7 +303,7 @@ export default function DepositPage() {
                     onChange={handleFileChange}
                     required
                     className="hidden"
-                    disabled={showLimitError}
+                    disabled={Boolean(showLimitError)}
                   />
                   <Button
                     type="button"
@@ -311,7 +314,7 @@ export default function DepositPage() {
                         : ''
                     }`}
                     onClick={() => document.getElementById('slip')?.click()}
-                    disabled={showLimitError}
+                    disabled={Boolean(showLimitError)}
                   >
                     <Upload className="h-6 w-6 mb-2" />
                     {selectedFile ? (
@@ -326,7 +329,7 @@ export default function DepositPage() {
               <Button 
                 type="submit" 
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                disabled={!amount || !selectedMethod || !selectedFile || isVerifying || isProcessing || !canDeposit}
+                disabled={Boolean(!amount || !selectedMethod || !selectedFile || isVerifying || isProcessing || !canDeposit)}
               >
                 {isProcessing ? (
                   <>
