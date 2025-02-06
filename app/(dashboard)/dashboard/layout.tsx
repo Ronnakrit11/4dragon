@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Users, Settings, Shield, Activity, Menu, UserCircle, Coins, Wallet, BarChart2, FileText, Globe, LogOut, ClipboardList, History, Key, CreditCard, BanknoteIcon, Moon, Sun, Package, BookOpen, ShoppingBag, PiggyBank } from 'lucide-react';
+import { Users, Settings, Shield, Activity, Menu, UserCircle, Coins, Wallet, BarChart2, FileText, Globe, LogOut, ClipboardList, History, Key, CreditCard, BanknoteIcon, Moon, Sun, Package, PiggyBank, ShoppingBag } from 'lucide-react';
 import { useUser } from '@/lib/auth';
 import { SocialContacts } from '@/components/SocialContacts';
 import { useTheme } from '@/lib/theme-provider';
@@ -30,11 +30,6 @@ export default function DashboardLayout({
     icon: any;
     label: string;
   }>>([]);
-  const [managementNavItems, setManagementNavItems] = useState<Array<{
-    href: string;
-    icon: any;
-    label: string;
-  }>>([]);
 
   const isDark = theme === 'dark';
 
@@ -43,7 +38,7 @@ export default function DashboardLayout({
     
     const baseItems = [
       { href: '/dashboard/gold', icon: Coins, label: 'ซื้อขายทอง' },
-      { href: '/dashboard/gold-jewelry', icon: ShoppingBag, label: 'ซื้อทองรูปพรรณ' },
+      
       { href: '/dashboard/asset', icon: BarChart2, label: 'สินทรัพย์ทั้งหมด' },
       { href: '/dashboard/transaction', icon: FileText, label: 'รายการซื้อขายทอง' },
       { href: '/dashboard/deposit', icon: Wallet, label: 'ฝากเงิน' },
@@ -60,7 +55,7 @@ export default function DashboardLayout({
     const adminItems = [
       { href: '/dashboard/set-price', icon: Settings, label: 'กำหนดราคา' },
       { href: '/dashboard/customers', icon: UserCircle, label: 'ลูกค้าทั้งหมด' },
-      { href: '/dashboard/deposit-limits', icon: BanknoteIcon, label: 'ตั้งค่าเพดานเงินฝาก' }, // Add this new line
+      { href: '/dashboard/deposit-limits', icon: BanknoteIcon, label: 'ตั้งค่าเพดานเงินฝาก' },
       { href: '/dashboard/transactions-history', icon: FileText, label: 'รายการซื้อขายทอง' },
       { href: '/dashboard/gold-stock', icon: Package, label: 'จัดการสต๊อกทอง' },
       { href: '/dashboard/savings-summary', icon: PiggyBank, label: 'สรุปการออม' },
@@ -69,16 +64,9 @@ export default function DashboardLayout({
       { href: '/dashboard/website-settings', icon: Globe, label: 'จัดการเว็บไซต์' },
       { href: '/dashboard/admin', icon: Shield, label: 'จัดการเเอดมิน' },
     ];
-    
-
-    const managementItems = [
-      { href: '/dashboard/management/products', icon: Package, label: 'จัดการสินค้า' },
-      { href: '/dashboard/management/catalog', icon: BookOpen, label: 'แคตตาล็อก' },
-    ];
 
     setGeneralNavItems(isAdmin ? [] : baseItems);
     setAdminNavItems(isAdmin ? adminItems : []);
-    setManagementNavItems(isAdmin ? managementItems : []);
   }, [user]);
 
   const handleLinkClick = () => {
@@ -158,34 +146,6 @@ export default function DashboardLayout({
                 General
               </h2>
               {generalNavItems.map((item) => (
-                <Link key={item.href} href={item.href} onClick={handleLinkClick}>
-                  <Button
-                    variant="ghost"
-                    className={`w-full justify-start ${
-                      pathname === item.href
-                        ? isDark
-                          ? 'bg-white/10 text-white'
-                          : 'bg-gray-100 text-gray-900'
-                        : isDark
-                        ? 'text-gray-400 hover:bg-white/5 hover:text-white'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } transition-colors`}
-                  >
-                    <item.icon className="mr-3 h-4 w-4" />
-                    <span className="text-sm font-medium">{item.label}</span>
-                  </Button>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {/* Management Menu Items */}
-          {managementNavItems.length > 0 && (
-            <div className="space-y-1 mt-6">
-              <h2 className={`px-2 py-2 text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
-                Management
-              </h2>
-              {managementNavItems.map((item) => (
                 <Link key={item.href} href={item.href} onClick={handleLinkClick}>
                   <Button
                     variant="ghost"
