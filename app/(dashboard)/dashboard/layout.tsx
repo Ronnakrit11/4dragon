@@ -140,10 +140,10 @@ export default function DashboardLayout({
       >
         <div className="flex h-16 items-center gap-2 border-b px-6 py-4 ${isDark ? 'border-[#222222]' : 'border-gray-200'}">
           <Image
-            src="/Ar-logo2.png"
+            src="/Ar-logo2.JPG"
             alt="Logo"
-            width={140}
-            height={40}
+            width={170}
+            height={170}
             className="h-8 w-auto"
           />
         </div>
