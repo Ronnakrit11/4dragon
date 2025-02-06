@@ -216,7 +216,7 @@ export async function POST(request: Request) {
         { 
           status: 400, 
           message: 'invalid_receiver',
-          details: 'Transfer must be to นาย รนกฤต เ account only'
+          details: 'Transfer must be to นายบรรณศาสตร์  account only'
         },
         { status: 400 }
       );
