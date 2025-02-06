@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { userBalances, goldAssets, transactions } from '@/lib/db/schema';
+import { userBalances, goldAssets, transactions, users } from '@/lib/db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { getUser } from '@/lib/db/queries';
 import { sendGoldPurchaseNotification, sendGoldSaleNotification } from '@/lib/telegram/bot';
 
-// Combine buy and sell into a single endpoint for better code reuse
 export async function POST(request: Request) {
   try {
     const user = await getUser();
@@ -29,8 +28,19 @@ export async function POST(request: Request) {
 
     // Start a transaction
     const result = await db.transaction(async (tx) => {
-      // For sell transactions, verify gold balance first
       if (type === 'sell') {
+        // Get an admin user for stock management
+        const [admin] = await tx
+          .select()
+          .from(users)
+          .where(eq(users.role, 'admin'))
+          .limit(1);
+
+        if (!admin) {
+          throw new Error('No admin account found for stock management');
+        }
+
+        // Calculate total gold holdings and average cost before the sale
         const [totalGold] = await tx
           .select({
             total: sql<string>`sum(${goldAssets.amount})`,
@@ -87,6 +97,14 @@ export async function POST(request: Request) {
               .where(eq(goldAssets.id, asset.id));
 
             remainingAmountToSell -= amountToSellFromAsset;
+
+            // Add the sold amount back to admin's stock
+            await tx.insert(goldAssets).values({
+              userId: admin.id,
+              goldType,
+              amount: amountToSellFromAsset.toString(),
+              purchasePrice: pricePerUnit.toString(),
+            });
           }
 
           if (remainingAmountToSell <= 0) break;
