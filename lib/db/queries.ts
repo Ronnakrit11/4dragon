@@ -30,6 +30,7 @@ export async function getUser() {
       email: users.email,
       passwordHash: users.passwordHash,
       role: users.role,
+      depositLimitId: users.depositLimitId,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       deletedAt: users.deletedAt,
