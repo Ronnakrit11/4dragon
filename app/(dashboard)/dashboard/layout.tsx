@@ -144,7 +144,7 @@ export default function DashboardLayout({
             alt="Logo"
             width={170}
             height={170}
-            className="h-8 w-auto"
+            className="h-10 w-auto"
           />
         </div>
 
