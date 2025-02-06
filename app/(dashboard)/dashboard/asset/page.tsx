@@ -26,12 +26,14 @@ interface AssetData {
   assets: GoldAsset[];
 }
 
+const PRICE_ADJUSTMENT = 50; // Fixed 50 baht adjustment
+const BAHT_TO_GRAM = 15.2; // 1 baht = 15.2 grams for 96.5% gold
+
 export default function AssetPage() {
   const { theme } = useTheme();
   const [assetData, setAssetData] = useState<AssetData | null>(null);
   const [prices, setPrices] = useState<GoldPrice[]>([]);
   const [loading, setLoading] = useState(true);
-  const BAHT_TO_GRAM = 15.2; // 1 baht = 15.2 grams for 96.5% gold
 
   const calculateGrams = (bathAmount: number) => {
     return (bathAmount * BAHT_TO_GRAM).toFixed(2);
@@ -66,14 +68,16 @@ export default function AssetPage() {
 
   const getBuybackPrice = useMemo(() => {
     const priceMap: Record<string, string> = {
-      'ทองสมาคม': 'สมาคมฯ',
+      'ทองสมาคม 96.5%': 'สมาคมฯ',
       'ทอง 99.99%': '99.99%',
       'ทอง 96.5%': '96.5%'
     };
     
     return (goldType: string) => {
       const price = prices.find(p => p.name === priceMap[goldType]);
-      return price ? Number(price.bid) : 0;
+      if (!price) return 0;
+      const baseBidPrice = Number(price.bid);
+      return baseBidPrice - PRICE_ADJUSTMENT; // Apply -50 baht adjustment for sell price
     };
   }, [prices]);
 
@@ -202,7 +206,10 @@ export default function AssetPage() {
                           ฿{currentValue.toLocaleString()}
                         </p>
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                          ราคารับซื้อ: ฿{buybackPrice.toLocaleString()}
+                          ราคารับซื้อ: ฿{buybackPrice.toLocaleString()} บาท
+                        </p>
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                          (ขาย: ฿{buybackPrice.toLocaleString()} บาท)
                         </p>
                         <p className={`text-sm ${profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {profitLoss >= 0 ? '+' : ''}{profitLoss.toLocaleString()} 
