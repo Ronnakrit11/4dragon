@@ -36,7 +36,7 @@ export default function GoldStockPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState({
-    goldType: 'ทอง 96.5%',
+    goldType: 'ทองสมาคม 96.5%',
     grams: '',
     purchasePrice: '',
   });
@@ -72,7 +72,7 @@ export default function GoldStockPage() {
         const data = await response.json();
         // Filter for admin's 96.5% gold assets only
         const adminGoldAssets = data.filter((asset: GoldAsset) => 
-          asset.goldType === 'ทอง 96.5%'
+          asset.goldType === 'ทองสมาคม 96.5%'
         );
         setGoldAssets(adminGoldAssets);
       }
@@ -111,7 +111,7 @@ export default function GoldStockPage() {
       toast.success('Gold stock added successfully');
       setIsDialogOpen(false);
       setFormData({
-        goldType: 'ทอง 96.5%',
+        goldType: 'ทองสมาคม 96.5%',
         grams: '',
         purchasePrice: '',
       });

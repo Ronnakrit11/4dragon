@@ -5,6 +5,7 @@ import { getUser } from '@/lib/db/queries';
 import { eq, sql, and, ne } from 'drizzle-orm';
 
 const ADMIN_EMAIL = 'ronnakritnook1@gmail.com';
+const GOLD_TYPE = 'ทองสมาคม 96.5%';
 
 export async function GET() {
   try {
@@ -27,33 +28,31 @@ export async function GET() {
       .where(
         and(
           eq(users.email, ADMIN_EMAIL),
-          eq(goldAssets.goldType, 'ทอง 96.5%')
+          eq(goldAssets.goldType, GOLD_TYPE)
         )
       );
 
     // Get user holdings (excluding admin)
-  // Get user holdings (excluding admin)
-const userSummaries = await db
-.select({
-  userId: users.id,
-  userName: users.name,
-  userEmail: users.email,
-  userRole: users.role,
-  goldType: goldAssets.goldType,
-  totalAmount: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`,
-  totalValue: sql<string>`COALESCE(sum(${goldAssets.amount} * ${goldAssets.purchasePrice}), '0')`
-})
-.from(goldAssets)
-.leftJoin(users, eq(goldAssets.userId, users.id))
-.where(
-  and(
-    sql`${goldAssets.amount} > 0`,
-    eq(goldAssets.goldType, 'ทอง 96.5%'),
-    ne(users.role, 'admin') // Add this condition to exclude admin users
-  )
-)
-.groupBy(users.id, users.name, users.email, users.role, goldAssets.goldType);
-
+    const userSummaries = await db
+      .select({
+        userId: users.id,
+        userName: users.name,
+        userEmail: users.email,
+        userRole: users.role,
+        goldType: goldAssets.goldType,
+        totalAmount: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`,
+        totalValue: sql<string>`COALESCE(sum(${goldAssets.amount} * ${goldAssets.purchasePrice}), '0')`
+      })
+      .from(goldAssets)
+      .leftJoin(users, eq(goldAssets.userId, users.id))
+      .where(
+        and(
+          sql`${goldAssets.amount} > 0`,
+          eq(goldAssets.goldType, GOLD_TYPE),
+          ne(users.role, 'admin')
+        )
+      )
+      .groupBy(users.id, users.name, users.email, users.role, goldAssets.goldType);
 
     // Get total holdings by type (excluding admin)
     const goldHoldings = await db
@@ -73,7 +72,7 @@ const userSummaries = await db
         and(
           sql`${goldAssets.amount} > 0`,
           ne(users.email, ADMIN_EMAIL),
-          eq(goldAssets.goldType, 'ทอง 96.5%')
+          eq(goldAssets.goldType, GOLD_TYPE)
         )
       )
       .groupBy(goldAssets.goldType);

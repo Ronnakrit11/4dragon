@@ -17,7 +17,7 @@ interface UserSummary {
   userId: number;
   userName: string | null;
   userEmail: string;
-  userRole: string; // Add role to the interface
+  userRole: string;
   goldType: string;
   totalAmount: string;
   totalValue: string;
@@ -26,9 +26,11 @@ interface UserSummary {
 interface SummaryData {
   goldHoldings: GoldHolding[];
   userSummaries: UserSummary[];
+  adminStock: string;
 }
 
 const BAHT_TO_GRAM = 15.2; // 1 baht = 15.2 grams for 96.5% gold
+const GOLD_TYPE = 'ทองสมาคม 96.5%';
 
 const calculateGrams = (bathAmount: number) => {
   return (bathAmount * BAHT_TO_GRAM).toFixed(2);
@@ -61,7 +63,7 @@ const SavingsSummaryPage = () => {
 
           // Calculate admin's total stock from assets
           const adminAssets = assetsData.filter((asset: any) => 
-            asset.goldType === 'ทอง 96.5%'
+            asset.goldType === GOLD_TYPE
           );
 
           const totalStock = adminAssets.reduce((total: number, asset: any) => 
@@ -73,7 +75,27 @@ const SavingsSummaryPage = () => {
             grams: Number(calculateGrams(totalStock))
           });
 
-          setSummaryData(summaryData);
+          // Filter user summaries to only include the correct gold type
+          const filteredSummaries = summaryData.userSummaries.filter(
+            (summary: UserSummary) => summary.goldType === GOLD_TYPE && summary.userRole !== 'admin'
+          );
+
+          // Group summaries by user and combine amounts
+          const groupedSummaries = filteredSummaries.reduce((acc: UserSummary[], summary: UserSummary) => {
+            const existingUser = acc.find(s => s.userId === summary.userId);
+            if (existingUser) {
+              existingUser.totalAmount = (Number(existingUser.totalAmount) + Number(summary.totalAmount)).toString();
+              existingUser.totalValue = (Number(existingUser.totalValue) + Number(summary.totalValue)).toString();
+            } else if (Number(summary.totalAmount) > 0) {
+              acc.push(summary);
+            }
+            return acc;
+          }, []);
+
+          setSummaryData({
+            ...summaryData,
+            userSummaries: groupedSummaries
+          });
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -123,21 +145,9 @@ const SavingsSummaryPage = () => {
     );
   }
 
-  // Calculate total gold value
-  const totalGoldValue = summaryData.goldHoldings.reduce(
-    (sum, holding) => sum + Number(holding.totalValue),
-    0
-  );
-
   // Calculate total gold amount held by users (excluding admin)
   const totalUserGoldAmount = summaryData.userSummaries.reduce(
-    (sum, summary) => {
-      // Skip admin's holdings and non-96.5% gold
-      if (summary.userRole === 'admin' || summary.goldType !== 'ทอง 96.5%') {
-        return sum;
-      }
-      return sum + Number(summary.totalAmount);
-    },
+    (sum, summary) => sum + Number(summary.totalAmount),
     0
   );
 
@@ -202,52 +212,27 @@ const SavingsSummaryPage = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {Object.values(
-              summaryData.userSummaries.reduce<{[key: string]: {
-                user: { name: string | null; email: string };
-                holdings: UserSummary[];
-              }}>((acc, summary) => {
-                // Skip admin users
-                if (summary.userRole === 'admin') {
-                  return acc;
-                }
-                
-                const key = summary.userId.toString();
-                if (!acc[key]) {
-                  acc[key] = {
-                    user: { name: summary.userName, email: summary.userEmail },
-                    holdings: []
-                  };
-                }
-                acc[key].holdings.push(summary);
-                return acc;
-              }, {})
-            ).map(({ user, holdings }) => (
+            {summaryData.userSummaries.map((summary) => (
               <div
-                key={holdings[0].userId}
+                key={summary.userId}
                 className={`p-4 border rounded-lg ${
                   isDark ? 'border-[#2A2A2A] bg-[#1a1a1a]' : 'border-gray-200'
                 }`}
               >
                 <h3 className={`text-lg font-medium mb-4 ${isDark ? 'text-white' : ''}`}>
-                  {user.name || user.email}
+                  {summary.userName || summary.userEmail}
                 </h3>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {holdings.map((holding, index) => (
-                    <div
-                      key={index}
-                      className={`p-3 rounded-lg ${isDark ? 'bg-[#252525]' : 'bg-gray-50'}`}
-                    >
-                      <p className={`font-medium mb-2 ${isDark ? 'text-white' : ''}`}>
-                        {holding.goldType}
-                      </p>
-                      <div className={`space-y-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <p>จำนวน: {Number(holding.totalAmount).toFixed(4)} บาท</p>
-                        <p>({calculateGrams(Number(holding.totalAmount))} กรัม)</p>
-                        <p>มูลค่า: ฿{Number(holding.totalValue).toLocaleString()}</p>
-                      </div>
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-[#252525]' : 'bg-gray-50'}`}>
+                    <p className={`font-medium mb-2 ${isDark ? 'text-white' : ''}`}>
+                      {summary.goldType}
+                    </p>
+                    <div className={`space-y-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <p>จำนวน: {Number(summary.totalAmount).toFixed(4)} บาท</p>
+                      <p>({calculateGrams(Number(summary.totalAmount))} กรัม)</p>
+                      <p>มูลค่า: ฿{Number(summary.totalValue).toLocaleString()}</p>
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
             ))}
