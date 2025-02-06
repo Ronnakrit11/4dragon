@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { verifiedSlips, userBalances } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { verifiedSlips, userBalances, users, depositLimits } from '@/lib/db/schema';
+import { eq, and, sql, gte } from 'drizzle-orm';
 import { getUser } from '@/lib/db/queries';
 import { sendDepositNotification } from '@/lib/telegram/bot';
 
@@ -120,6 +120,51 @@ async function checkSlipAlreadyUsed(transRef: string): Promise<boolean> {
   return existingSlip.length > 0;
 }
 
+async function checkDepositLimits(userId: number, amount: number): Promise<{ allowed: boolean; message?: string }> {
+  // Get user's deposit limit
+  const [user] = await db
+    .select({
+      depositLimit: depositLimits
+    })
+    .from(users)
+    .leftJoin(depositLimits, eq(users.depositLimitId, depositLimits.id))
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user.depositLimit) {
+    return { allowed: false, message: 'No deposit limit set for user' };
+  }
+
+  // Get today's total deposits
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [dailyTotal] = await db
+    .select({
+      total: sql<string>`COALESCE(sum(${verifiedSlips.amount}), '0')`
+    })
+    .from(verifiedSlips)
+    .where(
+      and(
+        eq(verifiedSlips.userId, userId),
+        gte(verifiedSlips.verifiedAt, today)
+      )
+    );
+
+  const dailyTotalAmount = Number(dailyTotal.total);
+  const newDailyTotal = dailyTotalAmount + amount;
+  const dailyLimit = Number(user.depositLimit.dailyLimit);
+
+  if (newDailyTotal > dailyLimit) {
+    return { 
+      allowed: false, 
+      message: `Deposit would exceed daily limit of ฿${dailyLimit.toLocaleString()}`
+    };
+  }
+
+  return { allowed: true };
+}
+
 async function recordVerifiedSlip(transRef: string, amount: number, userId: number | null) {
   await db.transaction(async (tx) => {
     // Record the verified slip
@@ -234,6 +279,21 @@ export async function POST(request: Request) {
           },
           { status: 400 }
         );
+      }
+
+      // Check deposit limits if user is logged in
+      if (user) {
+        const depositCheck = await checkDepositLimits(user.id, data.data.amount.amount);
+        if (!depositCheck.allowed) {
+          return NextResponse.json(
+            {
+              status: 400,
+              message: 'deposit_limit_exceeded',
+              details: depositCheck.message
+            },
+            { status: 400 }
+          );
+        }
       }
 
       // Record the verified slip and update user balance

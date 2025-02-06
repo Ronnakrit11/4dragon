@@ -18,6 +18,12 @@ interface VerifiedSlip {
   status: 'completed' | 'pending';
 }
 
+interface DepositLimit {
+  id: number;
+  name: string;
+  dailyLimit: string;
+}
+
 // Store used payloads in localStorage
 const getStoredPayloads = (): string[] => {
   if (typeof window === 'undefined') return [];
@@ -40,22 +46,39 @@ export default function DepositPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [recentDeposits, setRecentDeposits] = useState<VerifiedSlip[]>([]);
+  const [balance, setBalance] = useState(0);
+  const [depositLimit, setDepositLimit] = useState<DepositLimit | null>(null);
 
   useEffect(() => {
-    async function fetchRecentDeposits() {
+    async function fetchData() {
       try {
-        const response = await fetch('/api/deposits/recent');
-        if (response.ok) {
-          const data = await response.json();
-          setRecentDeposits(data);
+        // Fetch recent deposits
+        const depositsResponse = await fetch('/api/deposits/recent');
+        if (depositsResponse.ok) {
+          const depositsData = await depositsResponse.json();
+          setRecentDeposits(depositsData);
+        }
+
+        // Fetch user's balance
+        const balanceResponse = await fetch('/api/user/balance');
+        if (balanceResponse.ok) {
+          const balanceData = await balanceResponse.json();
+          setBalance(Number(balanceData.balance));
+        }
+
+        // Fetch user's deposit limit
+        const limitResponse = await fetch('/api/users/deposit-limit');
+        if (limitResponse.ok) {
+          const limitData = await limitResponse.json();
+          setDepositLimit(limitData);
         }
       } catch (error) {
-        console.error('Error fetching recent deposits:', error);
+        console.error('Error fetching data:', error);
       }
     }
 
     if (user) {
-      fetchRecentDeposits();
+      fetchData();
     }
   }, [user]);
 
@@ -65,6 +88,15 @@ export default function DepositPage() {
     if (!selectedFile || !amount) {
       toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
       return;
+    }
+
+    // Check if amount exceeds remaining limit
+    if (depositLimit) {
+      const remainingLimit = Number(depositLimit.dailyLimit) - balance;
+      if (Number(amount) > remainingLimit) {
+        toast.error('ไม่สามารถเพิ่มเงินได้');
+        return;
+      }
     }
 
     try {
@@ -101,6 +133,10 @@ export default function DepositPage() {
             toast.error('สลิปถูกใช้ไปแล้ว');
             return;
           }
+          if (data.message === 'deposit_limit_exceeded') {
+            toast.error(data.details);
+            return;
+          }
           throw new Error(data.message || 'Failed to verify slip');
         }
 
@@ -116,6 +152,13 @@ export default function DepositPage() {
           if (recentResponse.ok) {
             const recentData = await recentResponse.json();
             setRecentDeposits(recentData);
+          }
+
+          // Update balance
+          const balanceResponse = await fetch('/api/user/balance');
+          if (balanceResponse.ok) {
+            const balanceData = await balanceResponse.json();
+            setBalance(Number(balanceData.balance));
           }
         } else {
           toast.error(data.message || 'สลิปไม่ถูกต้อง');
@@ -163,6 +206,11 @@ export default function DepositPage() {
     });
   }
 
+  // Calculate remaining deposit limit
+  const remainingLimit = depositLimit ? Number(depositLimit.dailyLimit) - balance : 0;
+  const canDeposit = depositLimit && Number(amount) <= remainingLimit;
+  const showLimitError = amount && !canDeposit;
+
   return (
     <section className="flex-1 p-4 lg:p-8">
       <h1 className={`text-lg lg:text-2xl font-medium mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
@@ -193,6 +241,17 @@ export default function DepositPage() {
                   step="0.01"
                   className={`text-lg ${theme === 'dark' ? 'bg-[#1a1a1a] border-[#2A2A2A] text-white' : ''}`}
                 />
+                {depositLimit && (
+                  <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <p>เงินสดในพอร์ต: ฿{balance.toLocaleString()}</p>
+                    <p>วงเงินคงเหลือ: ฿{remainingLimit.toLocaleString()}</p>
+                  </div>
+                )}
+                {showLimitError && (
+                  <p className="text-sm text-red-500">
+                    ไม่สามารถเพิ่มเงินได้
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -211,6 +270,7 @@ export default function DepositPage() {
                             : ''
                       }`}
                       onClick={() => setSelectedMethod(method.id)}
+                      disabled={showLimitError}
                     >
                       <div className="flex items-center space-x-4 w-full">
                         <Image 
@@ -240,6 +300,7 @@ export default function DepositPage() {
                     onChange={handleFileChange}
                     required
                     className="hidden"
+                    disabled={showLimitError}
                   />
                   <Button
                     type="button"
@@ -250,6 +311,7 @@ export default function DepositPage() {
                         : ''
                     }`}
                     onClick={() => document.getElementById('slip')?.click()}
+                    disabled={showLimitError}
                   >
                     <Upload className="h-6 w-6 mb-2" />
                     {selectedFile ? (
@@ -264,12 +326,12 @@ export default function DepositPage() {
               <Button 
                 type="submit" 
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                disabled={!amount || !selectedMethod || !selectedFile || isVerifying || isProcessing}
+                disabled={!amount || !selectedMethod || !selectedFile || isVerifying || isProcessing || !canDeposit}
               >
                 {isProcessing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing Deposit...
+                    Processing...
                   </>
                 ) : (
                   'Proceed with Deposit'

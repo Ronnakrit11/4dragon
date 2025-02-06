@@ -4,61 +4,58 @@ import { users, depositLimits } from '@/lib/db/schema';
 import { getUser } from '@/lib/db/queries';
 import { eq } from 'drizzle-orm';
 
-export async function POST(request: Request) {
+// GET endpoint to fetch user's deposit limit
+export async function GET() {
   try {
-    const currentUser = await getUser();
+    const user = await getUser();
     
-    if (!currentUser || currentUser.role !== 'admin') {
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    const { userId, limitId } = await request.json();
-
-    // Verify user exists
-    const [targetUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (!targetUser) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Verify deposit limit exists
-    const [limit] = await db
-      .select()
-      .from(depositLimits)
-      .where(eq(depositLimits.id, limitId))
-      .limit(1);
-
-    if (!limit) {
-      return NextResponse.json(
-        { error: 'Deposit limit not found' },
-        { status: 404 }
-      );
-    }
-
-    // Update user's deposit limit
-    await db
-      .update(users)
-      .set({ 
-        depositLimitId: limitId,
-        updatedAt: new Date()
+    // Get user's deposit limit
+    const [userLimit] = await db
+      .select({
+        id: depositLimits.id,
+        name: depositLimits.name,
+        dailyLimit: depositLimits.dailyLimit,
       })
-      .where(eq(users.id, userId));
+      .from(users)
+      .leftJoin(depositLimits, eq(users.depositLimitId, depositLimits.id))
+      .where(eq(users.id, user.id))
+      .limit(1);
 
-    return NextResponse.json({ success: true });
+    if (!userLimit || !userLimit.id) {
+      // If no limit is set, get the default Level 1 limit
+      const [defaultLimit] = await db
+        .select()
+        .from(depositLimits)
+        .where(eq(depositLimits.name, 'Level 1'))
+        .limit(1);
+
+      if (defaultLimit) {
+        // Assign default limit to user
+        await db
+          .update(users)
+          .set({ depositLimitId: defaultLimit.id })
+          .where(eq(users.id, user.id));
+
+        return NextResponse.json({
+          id: defaultLimit.id,
+          name: defaultLimit.name,
+          dailyLimit: defaultLimit.dailyLimit,
+        });
+      }
+    }
+
+    return NextResponse.json(userLimit);
   } catch (error) {
-    console.error('Error updating user deposit limit:', error);
+    console.error('Error fetching deposit limit:', error);
     return NextResponse.json(
-      { error: 'Failed to update user deposit limit' },
+      { error: 'Failed to fetch deposit limit' },
       { status: 500 }
     );
   }
