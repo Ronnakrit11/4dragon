@@ -77,7 +77,10 @@ export async function POST(request: Request) {
 
     await db
       .update(users)
-      .set({ depositLimitId: limitId })
+      .set({ 
+        depositLimitId: limitId,
+        updatedAt: new Date()
+      })
       .where(eq(users.id, userId));
 
     return NextResponse.json({ success: true });

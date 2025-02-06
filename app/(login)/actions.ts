@@ -16,6 +16,7 @@ import {
   ActivityType,
   invitations,
   bankAccounts,
+  depositLimits,
 } from '@/lib/db/schema';
 import { comparePasswords, hashPassword, setSession, deleteSession } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
@@ -138,10 +139,18 @@ export const signUp = validatedAction(signUpSchema, async (data, formData): Prom
 
   const passwordHash = await hashPassword(password);
 
+  // Get default deposit limit (Level 1)
+  const [defaultLimit] = await db
+    .select()
+    .from(depositLimits)
+    .where(eq(depositLimits.name, 'Level 1'))
+    .limit(1);
+
   const newUser: NewUser = {
     email,
     passwordHash,
     role: email === ADMIN_EMAIL ? 'owner' : 'member',
+    depositLimitId: defaultLimit?.id, // Set default deposit limit
   };
 
   const [createdUser] = await db.insert(users).values(newUser).returning();
