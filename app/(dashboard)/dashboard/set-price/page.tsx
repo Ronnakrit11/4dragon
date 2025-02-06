@@ -132,7 +132,7 @@ export default function SetPricePage() {
             <div className="grid gap-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="gold_spot_bid" className={theme === 'dark' ? 'text-white' : ''}>Gold Spot Bid (%)</Label>
+                  <Label htmlFor="gold_spot_bid" className={theme === 'dark' ? 'text-white' : ''}>Gold Spot ราคาที่รับซื้อจากลูกค้า (%)</Label>
                   <Input
                     id="gold_spot_bid"
                     name="gold_spot_bid"
@@ -145,7 +145,7 @@ export default function SetPricePage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="gold_spot_ask" className={theme === 'dark' ? 'text-white' : ''}>Gold Spot Ask (%)</Label>
+                  <Label htmlFor="gold_spot_ask" className={theme === 'dark' ? 'text-white' : ''}>Gold Spot ราคาที่ลูกค้าซื้อจากร้าน (%)</Label>
                   <Input
                     id="gold_spot_ask"
                     name="gold_spot_ask"
@@ -161,7 +161,7 @@ export default function SetPricePage() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="gold_9999_bid" className={theme === 'dark' ? 'text-white' : ''}>Gold 99.99% Bid (%)</Label>
+                  <Label htmlFor="gold_9999_bid" className={theme === 'dark' ? 'text-white' : ''}>Gold 99.99% ราคาที่รับซื้อจากลูกค้า (%)</Label>
                   <Input
                     id="gold_9999_bid"
                     name="gold_9999_bid"
@@ -174,7 +174,7 @@ export default function SetPricePage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="gold_9999_ask" className={theme === 'dark' ? 'text-white' : ''}>Gold 99.99% Ask (%)</Label>
+                  <Label htmlFor="gold_9999_ask" className={theme === 'dark' ? 'text-white' : ''}>Gold 99.99% ราคาที่ลูกค้าซื้อจากร้าน (%)</Label>
                   <Input
                     id="gold_9999_ask"
                     name="gold_9999_ask"
@@ -190,7 +190,7 @@ export default function SetPricePage() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="gold_965_bid" className={theme === 'dark' ? 'text-white' : ''}>Gold 96.5% Bid (%)</Label>
+                  <Label htmlFor="gold_965_bid" className={theme === 'dark' ? 'text-white' : ''}>Gold 96.5% ราคาที่รับซื้อจากลูกค้า (%)</Label>
                   <Input
                     id="gold_965_bid"
                     name="gold_965_bid"
@@ -203,7 +203,7 @@ export default function SetPricePage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="gold_965_ask" className={theme === 'dark' ? 'text-white' : ''}>Gold 96.5% Ask (%)</Label>
+                  <Label htmlFor="gold_965_ask" className={theme === 'dark' ? 'text-white' : ''}>Gold 96.5% ราคาที่ลูกค้าซื้อจากร้าน (%)</Label>
                   <Input
                     id="gold_965_ask"
                     name="gold_965_ask"
@@ -219,7 +219,7 @@ export default function SetPricePage() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="gold_association_bid" className={theme === 'dark' ? 'text-white' : ''}>Gold Association Bid (%)</Label>
+                  <Label htmlFor="gold_association_bid" className={theme === 'dark' ? 'text-white' : ''}>Gold Association ราคาที่รับซื้อจากลูกค้า (%)</Label>
                   <Input
                     id="gold_association_bid"
                     name="gold_association_bid"
@@ -232,7 +232,7 @@ export default function SetPricePage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="gold_association_ask" className={theme === 'dark' ? 'text-white' : ''}>Gold Association Ask (%)</Label>
+                  <Label htmlFor="gold_association_ask" className={theme === 'dark' ? 'text-white' : ''}>Gold Association ราคาที่ลูกค้าซื้อจากร้าน (%)</Label>
                   <Input
                     id="gold_association_ask"
                     name="gold_association_ask"

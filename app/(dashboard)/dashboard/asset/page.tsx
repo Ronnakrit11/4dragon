@@ -31,11 +31,15 @@ export default function AssetPage() {
   const [assetData, setAssetData] = useState<AssetData | null>(null);
   const [prices, setPrices] = useState<GoldPrice[]>([]);
   const [loading, setLoading] = useState(true);
+  const BAHT_TO_GRAM = 15.2; // 1 baht = 15.2 grams for 96.5% gold
+
+  const calculateGrams = (bathAmount: number) => {
+    return (bathAmount * BAHT_TO_GRAM).toFixed(2);
+  };
 
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch asset data and prices in parallel
         const [assetResponse, pricesResponse] = await Promise.all([
           fetch('/api/asset-data'),
           fetch('/api/gold')
@@ -185,13 +189,18 @@ export default function AssetPage() {
                   >
                     <div className="flex justify-between items-start mb-0">
                       <div>
-                        <h3 className={`font-medium text-lg ${theme === 'dark' ? 'text-white' : ''}`}>{asset.goldType}</h3>
-                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {Number(asset.amount).toFixed(4)} บาท
-                        </p>
+                        <h3 className={`font-medium ${theme === 'dark' ? 'text-white' : ''}`}>
+                          {asset.goldType}
+                        </h3>
+                        <div className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                          <p>จำนวน: {Number(asset.amount).toFixed(4)} บาท</p>
+                          <p>({calculateGrams(Number(asset.amount))} กรัม)</p>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>฿{currentValue.toLocaleString()}</p>
+                        <p className={`font-medium mb-1 ${theme === 'dark' ? 'text-white' : ''}`}>
+                          ฿{currentValue.toLocaleString()}
+                        </p>
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                           ราคารับซื้อ: ฿{buybackPrice.toLocaleString()}
                         </p>
