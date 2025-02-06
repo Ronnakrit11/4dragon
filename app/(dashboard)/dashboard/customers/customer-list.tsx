@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface User {
   id: number;
@@ -11,12 +11,14 @@ interface User {
   email: string;
   role: string;
   createdAt: Date;
+  depositLimitId?: number | null;
 }
 
 interface DepositLimit {
   id: number;
   name: string;
   dailyLimit: string;
+  monthlyLimit: string;
 }
 
 interface CustomerListProps {
@@ -35,9 +37,20 @@ function formatDate(date: Date) {
 export function CustomerList({ users, depositLimits }: CustomerListProps) {
   const [userLimits, setUserLimits] = useState<{[key: number]: number}>({});
 
+  // Initialize userLimits with current values
+  useEffect(() => {
+    const initialLimits = users.reduce((acc, user) => {
+      if (user.depositLimitId) {
+        acc[user.id] = user.depositLimitId;
+      }
+      return acc;
+    }, {} as {[key: number]: number});
+    setUserLimits(initialLimits);
+  }, [users]);
+
   const handleLimitChange = async (userId: number, limitId: string) => {
     try {
-      const response = await fetch('/api/users/deposit-limit', {
+      const response = await fetch('/api/user/deposit-limit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -94,7 +107,7 @@ export function CustomerList({ users, depositLimits }: CustomerListProps) {
               </div>
               <div className="flex items-center space-x-4">
                 <Select
-                  defaultValue={userLimits[user.id]?.toString() || '1'}
+                  value={userLimits[user.id]?.toString() || '1'}
                   onValueChange={(value) => handleLimitChange(user.id, value)}
                 >
                   <SelectTrigger className="w-[180px] dark:bg-[#1a1a1a] dark:border-[#2A2A2A] dark:text-white">

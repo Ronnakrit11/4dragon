@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Wallet, Upload, Loader2 } from 'lucide-react';
+import { Wallet, Loader2 , Upload } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/auth';
@@ -24,19 +24,6 @@ interface DepositLimit {
   dailyLimit: string;
 }
 
-// Store used payloads in localStorage
-const getStoredPayloads = (): string[] => {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem('usedPayloads');
-  return stored ? JSON.parse(stored) : [];
-};
-
-const storePayload = (payload: string) => {
-  const payloads = getStoredPayloads();
-  payloads.push(payload);
-  localStorage.setItem('usedPayloads', JSON.stringify(payloads));
-};
-
 export default function DepositPage() {
   const { user } = useUser();
   const { theme } = useTheme();
@@ -52,24 +39,21 @@ export default function DepositPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch recent deposits
-        const depositsResponse = await fetch('/api/deposits/recent');
-        if (depositsResponse.ok) {
-          const depositsData = await depositsResponse.json();
+        const [depositsResponse, balanceResponse, limitResponse] = await Promise.all([
+          fetch('/api/deposits/recent'),
+          fetch('/api/user/balance'),
+          fetch('/api/user/deposit-limit')
+        ]);
+
+        if (depositsResponse.ok && balanceResponse.ok && limitResponse.ok) {
+          const [depositsData, balanceData, limitData] = await Promise.all([
+            depositsResponse.json(),
+            balanceResponse.json(),
+            limitResponse.json()
+          ]);
+
           setRecentDeposits(depositsData);
-        }
-
-        // Fetch user's balance
-        const balanceResponse = await fetch('/api/user/balance');
-        if (balanceResponse.ok) {
-          const balanceData = await balanceResponse.json();
           setBalance(Number(balanceData.balance));
-        }
-
-        // Fetch user's deposit limit
-        const limitResponse = await fetch('/api/user/deposit-limit');
-        if (limitResponse.ok) {
-          const limitData = await limitResponse.json();
           setDepositLimit(limitData);
         }
       } catch (error) {
@@ -90,88 +74,76 @@ export default function DepositPage() {
       return;
     }
 
-    // Check if amount exceeds remaining limit
+    const amountNum = Number(amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('กรุณากรอกจำนวนเงินที่ถูกต้อง');
+      return;
+    }
+
     if (depositLimit) {
-      const amountNum = Number(amount);
       const dailyLimit = Number(depositLimit.dailyLimit);
       const remainingLimit = dailyLimit - balance;
 
       if (amountNum > remainingLimit) {
-        toast.error('ไม่สามารถเพิ่มเงินได้');
+        toast.error('ไม่สามารถเพิ่มเงินได้ เนื่องจากเกินวงเงินที่กำหนด');
         return;
       }
     }
 
+    setIsVerifying(true);
+    setIsProcessing(true);
+
     try {
-      setIsVerifying(true);
-      setIsProcessing(true);
+      const formData = new FormData();
+      formData.append('slip', selectedFile);
+      formData.append('amount', amount);
 
-      const fileReader = new FileReader();
-      
-      fileReader.onload = async () => {
-        const base64Content = fileReader.result?.toString() || '';
-        const usedPayloads = getStoredPayloads();
+      const response = await fetch('/api/verify-slip', {
+        method: 'POST',
+        body: formData,
+      });
 
-        if (usedPayloads.includes(base64Content)) {
-          setIsVerifying(false);
-          setIsProcessing(false);
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.message === 'slip_already_used') {
           toast.error('สลิปถูกใช้ไปแล้ว');
           return;
         }
+        if (data.message === 'deposit_limit_exceeded') {
+          toast.error(data.details);
+          return;
+        }
+        throw new Error(data.message || 'Failed to verify slip');
+      }
 
-        const formData = new FormData();
-        formData.append('slip', selectedFile);
-        formData.append('amount', amount);
+      if (data.status === 200) {
+        toast.success('ยืนยันสลิปสำเร็จ');
+        setAmount('');
+        setSelectedMethod(null);
+        setSelectedFile(null);
+        
+        // Refresh data
+        const [recentResponse, balanceResponse] = await Promise.all([
+          fetch('/api/deposits/recent'),
+          fetch('/api/user/balance')
+        ]);
 
-        const response = await fetch('/api/verify-slip', {
-          method: 'POST',
-          body: formData,
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          if (data.message === 'slip_already_used') {
-            storePayload(base64Content);
-            toast.error('สลิปถูกใช้ไปแล้ว');
-            return;
-          }
-          if (data.message === 'deposit_limit_exceeded') {
-            toast.error(data.details);
-            return;
-          }
-          throw new Error(data.message || 'Failed to verify slip');
+        if (recentResponse.ok) {
+          const recentData = await recentResponse.json();
+          setRecentDeposits(recentData);
         }
 
-        if (data.status === 200) {
-          storePayload(base64Content);
-          
-          toast.success('ยืนยันสลิปสำเร็จ');
-          setAmount('');
-          setSelectedMethod(null);
-          setSelectedFile(null);
-          
-          const recentResponse = await fetch('/api/deposits/recent');
-          if (recentResponse.ok) {
-            const recentData = await recentResponse.json();
-            setRecentDeposits(recentData);
-          }
-
-          // Update balance
-          const balanceResponse = await fetch('/api/user/balance');
-          if (balanceResponse.ok) {
-            const balanceData = await balanceResponse.json();
-            setBalance(Number(balanceData.balance));
-          }
-        } else {
-          toast.error(data.message || 'สลิปไม่ถูกต้อง');
+        if (balanceResponse.ok) {
+          const balanceData = await balanceResponse.json();
+          setBalance(Number(balanceData.balance));
         }
-      };
-
-      fileReader.readAsDataURL(selectedFile);
+      } else {
+        toast.error(data.message || 'สลิปไม่ถูกต้อง');
+      }
     } catch (error) {
       console.error('Error processing deposit:', error);
-      toast.error(error instanceof Error ? error.message : 'ไม่สามารถตรวจสอบสลิปได้');
+      toast.error('ไม่สามารถตรวจสอบสลิปได้');
     } finally {
       setIsVerifying(false);
       setIsProcessing(false);
@@ -211,8 +183,9 @@ export default function DepositPage() {
 
   // Calculate remaining deposit limit and validation states
   const remainingLimit = depositLimit ? Number(depositLimit.dailyLimit) - balance : 0;
-  const canDeposit = Boolean(depositLimit && Number(amount) <= remainingLimit);
-  const showLimitError = Boolean(amount) && !canDeposit;
+  const amountNum = Number(amount);
+  const canDeposit = Boolean(depositLimit && (!amount || (amountNum > 0 && amountNum <= remainingLimit)));
+  const showLimitError = Boolean(amount && amountNum > 0 && !canDeposit);
 
   return (
     <section className="flex-1 p-4 lg:p-8">
@@ -234,11 +207,10 @@ export default function DepositPage() {
                 <Label htmlFor="amount" className={theme === 'dark' ? 'text-white' : ''}>Amount (THB)</Label>
                 <Input
                   id="amount"
-                  name="amount"
                   type="number"
-                  placeholder="Enter amount"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Enter amount"
                   required
                   min="0"
                   step="0.01"
@@ -247,12 +219,12 @@ export default function DepositPage() {
                 {depositLimit && (
                   <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                     <p>เงินสดในพอร์ต: ฿{balance.toLocaleString()}</p>
-                    <p>วงเงินคงเหลือ: ฿{remainingLimit.toLocaleString()}</p>
+                    <p>วงเงินคงเหลือที่เติมได้: ฿{Math.max(0, remainingLimit).toLocaleString()}</p>
                   </div>
                 )}
                 {showLimitError && (
                   <p className="text-sm text-red-500">
-                    ไม่สามารถเพิ่มเงินได้
+                    ไม่สามารถเพิ่มเงินได้ เนื่องจากเกินวงเงินที่กำหนด
                   </p>
                 )}
               </div>

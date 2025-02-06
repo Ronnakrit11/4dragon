@@ -39,6 +39,7 @@ export default async function CustomersPage() {
       email: users.email,
       role: users.role,
       createdAt: users.createdAt,
+      depositLimitId: users.depositLimitId,
     })
     .from(users)
     .where(isNull(users.deletedAt))

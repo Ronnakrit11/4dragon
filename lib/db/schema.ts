@@ -10,13 +10,25 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations, type InferSelectModel } from 'drizzle-orm';
 
-// Define users table first since it's referenced by other tables
+// Define deposit limits table first since it will be referenced by users
+export const depositLimits = pgTable('deposit_limits', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  dailyLimit: decimal('daily_limit').notNull(),
+  monthlyLimit: decimal('monthly_limit').notNull(),
+  createdBy: integer('created_by').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Then define users table with depositLimitId reference
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }),
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   role: varchar('role', { length: 20 }).notNull().default('member'),
+  depositLimitId: integer('deposit_limit_id').references(() => depositLimits.id),
   twoFactorSecret: text('two_factor_secret'),
   twoFactorEnabled: boolean('two_factor_enabled').default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -24,18 +36,6 @@ export const users = pgTable('users', {
   deletedAt: timestamp('deleted_at'),
 });
 
-// Now we can safely reference the users table
-export const depositLimits = pgTable('deposit_limits', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull(),
-  dailyLimit: decimal('daily_limit').notNull(),
-  monthlyLimit: decimal('monthly_limit').notNull(),
-  createdBy: integer('created_by').notNull().references(() => users.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-// Rest of your schema definitions...
 export const teams = pgTable('teams', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull(),
@@ -231,6 +231,10 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   balance: one(userBalances, {
     fields: [users.id],
     references: [userBalances.userId],
+  }),
+  depositLimit: one(depositLimits, {
+    fields: [users.depositLimitId],
+    references: [depositLimits.id],
   }),
 }));
 

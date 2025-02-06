@@ -4,7 +4,6 @@ import { users, depositLimits } from '@/lib/db/schema';
 import { getUser } from '@/lib/db/queries';
 import { eq } from 'drizzle-orm';
 
-// GET endpoint to fetch user's deposit limit
 export async function GET() {
   try {
     const user = await getUser();
@@ -22,6 +21,7 @@ export async function GET() {
         id: depositLimits.id,
         name: depositLimits.name,
         dailyLimit: depositLimits.dailyLimit,
+        monthlyLimit: depositLimits.monthlyLimit,
       })
       .from(users)
       .leftJoin(depositLimits, eq(users.depositLimitId, depositLimits.id))
@@ -47,6 +47,7 @@ export async function GET() {
           id: defaultLimit.id,
           name: defaultLimit.name,
           dailyLimit: defaultLimit.dailyLimit,
+          monthlyLimit: defaultLimit.monthlyLimit,
         });
       }
     }
@@ -56,6 +57,34 @@ export async function GET() {
     console.error('Error fetching deposit limit:', error);
     return NextResponse.json(
       { error: 'Failed to fetch deposit limit' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const user = await getUser();
+    
+    if (!user || user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const { userId, limitId } = await request.json();
+
+    await db
+      .update(users)
+      .set({ depositLimitId: limitId })
+      .where(eq(users.id, userId));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error updating deposit limit:', error);
+    return NextResponse.json(
+      { error: 'Failed to update deposit limit' },
       { status: 500 }
     );
   }

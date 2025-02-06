@@ -1,11 +1,12 @@
 /*
-  # Add deposit limit ID to users table
+  # Add deposit limit relationship to users
 
   1. Changes
     - Add deposit_limit_id column to users table
-    - Add foreign key reference to deposit_limits table
+    - Set default deposit limit for existing users
 */
 
+-- Add deposit_limit_id column to users table
 ALTER TABLE users 
 ADD COLUMN deposit_limit_id integer REFERENCES deposit_limits(id);
 
