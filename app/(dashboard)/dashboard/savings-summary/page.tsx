@@ -17,6 +17,7 @@ interface UserSummary {
   userId: number;
   userName: string | null;
   userEmail: string;
+  userRole: string; // Add role to the interface
   goldType: string;
   totalAmount: string;
   totalValue: string;
@@ -132,7 +133,7 @@ const SavingsSummaryPage = () => {
   const totalUserGoldAmount = summaryData.userSummaries.reduce(
     (sum, summary) => {
       // Skip admin's holdings and non-96.5% gold
-      if (summary.userEmail === 'ronnakritnook1@gmail.com' || summary.goldType !== 'ทอง 96.5%') {
+      if (summary.userRole === 'admin' || summary.goldType !== 'ทอง 96.5%') {
         return sum;
       }
       return sum + Number(summary.totalAmount);
@@ -206,8 +207,8 @@ const SavingsSummaryPage = () => {
                 user: { name: string | null; email: string };
                 holdings: UserSummary[];
               }}>((acc, summary) => {
-                // Skip admin user
-                if (summary.userEmail === 'ronnakritnook1@gmail.com') {
+                // Skip admin users
+                if (summary.userRole === 'admin') {
                   return acc;
                 }
                 

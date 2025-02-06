@@ -32,25 +32,28 @@ export async function GET() {
       );
 
     // Get user holdings (excluding admin)
-    const userSummaries = await db
-      .select({
-        userId: users.id,
-        userName: users.name,
-        userEmail: users.email,
-        goldType: goldAssets.goldType,
-        totalAmount: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`,
-        totalValue: sql<string>`COALESCE(sum(${goldAssets.amount} * ${goldAssets.purchasePrice}), '0')`
-      })
-      .from(goldAssets)
-      .leftJoin(users, eq(goldAssets.userId, users.id))
-      .where(
-        and(
-          sql`${goldAssets.amount} > 0`,
-          ne(users.email, ADMIN_EMAIL),
-          eq(goldAssets.goldType, 'ทอง 96.5%')
-        )
-      )
-      .groupBy(users.id, users.name, users.email, goldAssets.goldType);
+  // Get user holdings (excluding admin)
+const userSummaries = await db
+.select({
+  userId: users.id,
+  userName: users.name,
+  userEmail: users.email,
+  userRole: users.role,
+  goldType: goldAssets.goldType,
+  totalAmount: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`,
+  totalValue: sql<string>`COALESCE(sum(${goldAssets.amount} * ${goldAssets.purchasePrice}), '0')`
+})
+.from(goldAssets)
+.leftJoin(users, eq(goldAssets.userId, users.id))
+.where(
+  and(
+    sql`${goldAssets.amount} > 0`,
+    eq(goldAssets.goldType, 'ทอง 96.5%'),
+    ne(users.role, 'admin') // Add this condition to exclude admin users
+  )
+)
+.groupBy(users.id, users.name, users.email, users.role, goldAssets.goldType);
+
 
     // Get total holdings by type (excluding admin)
     const goldHoldings = await db
