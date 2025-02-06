@@ -60,6 +60,7 @@ export default function DashboardLayout({
     const adminItems = [
       { href: '/dashboard/set-price', icon: Settings, label: 'กำหนดราคา' },
       { href: '/dashboard/customers', icon: UserCircle, label: 'ลูกค้าทั้งหมด' },
+      { href: '/dashboard/deposit-limits', icon: BanknoteIcon, label: 'ตั้งค่าเพดานเงินฝาก' }, // Add this new line
       { href: '/dashboard/transactions-history', icon: FileText, label: 'รายการซื้อขายทอง' },
       { href: '/dashboard/gold-stock', icon: Package, label: 'จัดการสต๊อกทอง' },
       { href: '/dashboard/savings-summary', icon: PiggyBank, label: 'สรุปการออม' },
@@ -68,6 +69,7 @@ export default function DashboardLayout({
       { href: '/dashboard/website-settings', icon: Globe, label: 'จัดการเว็บไซต์' },
       { href: '/dashboard/admin', icon: Shield, label: 'จัดการเเอดมิน' },
     ];
+    
 
     const managementItems = [
       { href: '/dashboard/management/products', icon: Package, label: 'จัดการสินค้า' },
