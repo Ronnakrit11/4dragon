@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { db } from '@/lib/db/drizzle';
-import { users } from '@/lib/db/schema';
+import { users, depositLimits } from '@/lib/db/schema';
 import { CustomerList } from './customer-list';
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/db/queries';
@@ -31,7 +31,7 @@ export default async function CustomersPage() {
     );
   }
 
-  // Get all users except deleted ones
+  // Get all users except deleted ones and admins
   const allUsers = await db
     .select({
       id: users.id,
@@ -44,6 +44,12 @@ export default async function CustomersPage() {
     .where(isNull(users.deletedAt))
     .orderBy(desc(users.createdAt));
 
+  // Get all deposit limits for the dropdown
+  const depositLimitsList = await db
+    .select()
+    .from(depositLimits)
+    .orderBy(depositLimits.name);
+
   return (
     <section className="flex-1 p-4 lg:p-8">
       <h1 className="text-lg lg:text-2xl font-medium dark:text-white text-gray-900 mb-6">
@@ -54,7 +60,7 @@ export default async function CustomersPage() {
           <CardTitle className="dark:text-white">Customer List</CardTitle>
         </CardHeader>
         <CardContent>
-          <CustomerList users={allUsers} />
+          <CustomerList users={allUsers} depositLimits={depositLimitsList} />
         </CardContent>
       </Card>
     </section>

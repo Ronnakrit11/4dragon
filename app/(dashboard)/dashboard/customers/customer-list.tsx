@@ -1,6 +1,9 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+import { useState } from 'react';
 
 interface User {
   id: number;
@@ -10,8 +13,15 @@ interface User {
   createdAt: Date;
 }
 
+interface DepositLimit {
+  id: number;
+  name: string;
+  dailyLimit: string;
+}
+
 interface CustomerListProps {
   users: User[];
+  depositLimits: DepositLimit[];
 }
 
 function formatDate(date: Date) {
@@ -22,12 +32,43 @@ function formatDate(date: Date) {
   return `${day}/${month}/${year}`;
 }
 
-export function CustomerList({ users }: CustomerListProps) {
+export function CustomerList({ users, depositLimits }: CustomerListProps) {
+  const [userLimits, setUserLimits] = useState<{[key: number]: number}>({});
+
+  const handleLimitChange = async (userId: number, limitId: string) => {
+    try {
+      const response = await fetch('/api/users/deposit-limit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          limitId: parseInt(limitId)
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update deposit limit');
+      }
+
+      setUserLimits(prev => ({
+        ...prev,
+        [userId]: parseInt(limitId)
+      }));
+
+      toast.success('Deposit limit updated successfully');
+    } catch (error) {
+      console.error('Error updating deposit limit:', error);
+      toast.error('Failed to update deposit limit');
+    }
+  };
+
   return (
     <div className="space-y-4">
       {users.length > 0 ? (
-        <div className="divide-y divide-gray-200">
-          {users.map((user) => (
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          {users.filter(user => user.role !== 'admin').map((user) => (
             <div
               key={user.id}
               className="flex items-center justify-between py-4"
@@ -45,23 +86,33 @@ export function CustomerList({ users }: CustomerListProps) {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-gray-900 dark:text-white">
                     {user.name || 'Unnamed User'}
                   </p>
-                  <p className="text-sm text-gray-500">{user.email}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    user.role === 'owner'
-                      ? 'bg-orange-100 text-orange-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
+                <Select
+                  defaultValue={userLimits[user.id]?.toString() || '1'}
+                  onValueChange={(value) => handleLimitChange(user.id, value)}
                 >
-                  {user.role}
-                </span>
-                <span className="text-sm text-gray-500">
+                  <SelectTrigger className="w-[180px] dark:bg-[#1a1a1a] dark:border-[#2A2A2A] dark:text-white">
+                    <SelectValue placeholder="Select deposit limit" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-[#1a1a1a] dark:border-[#2A2A2A]">
+                    {depositLimits.map((limit) => (
+                      <SelectItem 
+                        key={limit.id} 
+                        value={limit.id.toString()}
+                        className="dark:text-white dark:focus:bg-[#252525]"
+                      >
+                        {limit.name} - ฿{Number(limit.dailyLimit).toLocaleString()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   Joined: {formatDate(user.createdAt)}
                 </span>
               </div>
@@ -70,7 +121,7 @@ export function CustomerList({ users }: CustomerListProps) {
         </div>
       ) : (
         <div className="text-center py-12">
-          <p className="text-gray-500">No users found</p>
+          <p className="text-gray-500 dark:text-gray-400">No users found</p>
         </div>
       )}
     </div>

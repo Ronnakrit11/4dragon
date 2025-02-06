@@ -26,14 +26,13 @@ export default function DepositLimitsPage() {
   const isDark = theme === 'dark';
   
   const [limits, setLimits] = useState<DepositLimit[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedLimit, setSelectedLimit] = useState<DepositLimit | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     dailyLimit: '',
-    monthlyLimit: '',
   });
 
   useEffect(() => {
@@ -67,7 +66,7 @@ export default function DepositLimitsPage() {
       console.error('Error fetching deposit limits:', error);
       toast.error('Failed to fetch deposit limits');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }
 
@@ -83,7 +82,9 @@ export default function DepositLimitsPage() {
         },
         body: JSON.stringify({
           id: selectedLimit?.id,
-          ...formData,
+          name: formData.name,
+          dailyLimit: formData.dailyLimit,
+          monthlyLimit: formData.dailyLimit, // Set monthly limit same as daily for simplification
         }),
       });
 
@@ -127,7 +128,6 @@ export default function DepositLimitsPage() {
     setFormData({
       name: '',
       dailyLimit: '',
-      monthlyLimit: '',
     });
     setSelectedLimit(null);
   }
@@ -155,7 +155,7 @@ export default function DepositLimitsPage() {
           <CardTitle className={isDark ? 'text-white' : ''}>Deposit Limits</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
             </div>
@@ -175,8 +175,7 @@ export default function DepositLimitsPage() {
                       {limit.name}
                     </h3>
                     <div className={`mt-1 space-y-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      <p>เพดานรายวัน: ฿{Number(limit.dailyLimit).toLocaleString()}</p>
-                      <p>เพดานรายเดือน: ฿{Number(limit.monthlyLimit).toLocaleString()}</p>
+                      <p>จำนวนเงิน: ฿{Number(limit.dailyLimit).toLocaleString()}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -188,7 +187,6 @@ export default function DepositLimitsPage() {
                         setFormData({
                           name: limit.name,
                           dailyLimit: limit.dailyLimit,
-                          monthlyLimit: limit.monthlyLimit,
                         });
                         setIsDialogOpen(true);
                       }}
@@ -241,26 +239,12 @@ export default function DepositLimitsPage() {
             </div>
 
             <div>
-              <Label htmlFor="dailyLimit" className={isDark ? 'text-white' : ''}>เพดานรายวัน (บาท)</Label>
+              <Label htmlFor="dailyLimit" className={isDark ? 'text-white' : ''}>จำนวนเงิน (บาท)</Label>
               <Input
                 id="dailyLimit"
                 type="number"
                 value={formData.dailyLimit}
                 onChange={(e) => setFormData(prev => ({ ...prev, dailyLimit: e.target.value }))}
-                placeholder="ใส่จำนวนเงิน"
-                className={isDark ? 'bg-[#1a1a1a] border-[#2A2A2A] text-white' : ''}
-                required
-                min="0"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="monthlyLimit" className={isDark ? 'text-white' : ''}>เพดานรายเดือน (บาท)</Label>
-              <Input
-                id="monthlyLimit"
-                type="number"
-                value={formData.monthlyLimit}
-                onChange={(e) => setFormData(prev => ({ ...prev, monthlyLimit: e.target.value }))}
                 placeholder="ใส่จำนวนเงิน"
                 className={isDark ? 'bg-[#1a1a1a] border-[#2A2A2A] text-white' : ''}
                 required
