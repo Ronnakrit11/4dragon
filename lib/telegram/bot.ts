@@ -16,6 +16,12 @@ const getChatId = () => {
     Number(chatId.replace('@', '')); // Handle channel usernames
 };
 
+const BAHT_TO_GRAM = 15.2; // 1 baht = 15.2 grams for 96.5% gold
+
+const calculateGrams = (bathAmount: number) => {
+  return (bathAmount * BAHT_TO_GRAM).toFixed(2);
+};
+
 // Add this new function for deposit notifications
 export async function sendDepositNotification(data: {
   userName: string;
@@ -77,20 +83,17 @@ export async function sendGoldPurchaseNotification(data: {
   pricePerUnit: number;
 }) {
   try {
-    // Validate bot token
     if (!process.env.TELEGRAM_BOT_TOKEN) {
       console.error('Missing TELEGRAM_BOT_TOKEN');
       return;
     }
 
-    // Get and validate chat ID
     const chatId = getChatId();
     if (!chatId) {
       console.error('Invalid TELEGRAM_CHAT_ID');
       return;
     }
 
-    // First verify the bot has access to the chat
     try {
       await bot.getChat(chatId);
     } catch (error) {
@@ -101,7 +104,7 @@ export async function sendGoldPurchaseNotification(data: {
     const message = `🏆 *New Gold Purchase!*\n\n` +
       `👤 User: ${data.userName}\n` +
       `📦 Gold Type: ${data.goldType}\n` +
-      `💰 Amount: ${data.amount.toFixed(4)} บาท\n` +
+      `💰 Amount: ${data.amount.toFixed(4)} บาท (${calculateGrams(data.amount)} กรัม)\n` +
       `💵 Price/Unit: ฿${data.pricePerUnit.toLocaleString()}\n` +
       `💎 Total Price: ฿${data.totalPrice.toLocaleString()}`;
 
@@ -134,20 +137,17 @@ export async function sendGoldSaleNotification(data: {
   profitLoss: number;
 }) {
   try {
-    // Validate bot token
     if (!process.env.TELEGRAM_BOT_TOKEN) {
       console.error('Missing TELEGRAM_BOT_TOKEN');
       return;
     }
 
-    // Get and validate chat ID
     const chatId = getChatId();
     if (!chatId) {
       console.error('Invalid TELEGRAM_CHAT_ID');
       return;
     }
 
-    // First verify the bot has access to the chat
     try {
       await bot.getChat(chatId);
     } catch (error) {
@@ -161,7 +161,7 @@ export async function sendGoldSaleNotification(data: {
     const message = `💫 *New Gold Sale!*\n\n` +
       `👤 User: ${data.userName}\n` +
       `📦 Gold Type: ${data.goldType}\n` +
-      `💰 Amount: ${data.amount.toFixed(4)} บาท\n` +
+      `💰 Amount: ${data.amount.toFixed(4)} บาท (${calculateGrams(data.amount)} กรัม)\n` +
       `💵 Price/Unit: ฿${data.pricePerUnit.toLocaleString()}\n` +
       `💎 Total Price: ฿${data.totalPrice.toLocaleString()}\n` +
       `${profitLossEmoji} ${profitLossText}: ฿${Math.abs(data.profitLoss).toLocaleString()}`;
@@ -194,20 +194,17 @@ export async function sendWithdrawalRequestNotification(data: {
   accountName: string;
 }) {
   try {
-    // Validate bot token
     if (!process.env.TELEGRAM_BOT_TOKEN) {
       console.error('Missing TELEGRAM_BOT_TOKEN');
       return;
     }
 
-    // Get and validate chat ID
     const chatId = getChatId();
     if (!chatId) {
       console.error('Invalid TELEGRAM_CHAT_ID');
       return;
     }
 
-    // First verify the bot has access to the chat
     try {
       await bot.getChat(chatId);
     } catch (error) {
@@ -261,20 +258,17 @@ export async function sendGoldWithdrawalNotification(data: {
   address: string;
 }) {
   try {
-    // Validate bot token
     if (!process.env.TELEGRAM_BOT_TOKEN) {
       console.error('Missing TELEGRAM_BOT_TOKEN');
       return;
     }
 
-    // Get and validate chat ID
     const chatId = getChatId();
     if (!chatId) {
       console.error('Invalid TELEGRAM_CHAT_ID');
       return;
     }
 
-    // First verify the bot has access to the chat
     try {
       await bot.getChat(chatId);
     } catch (error) {
@@ -285,7 +279,7 @@ export async function sendGoldWithdrawalNotification(data: {
     const message = `🏆 *New Gold Withdrawal Request!*\n\n` +
       `👤 User: ${data.userName}\n` +
       `📦 Gold Type: ${data.goldType}\n` +
-      `💰 Amount: ${data.amount.toFixed(4)} บาท\n\n` +
+      `💰 Amount: ${data.amount.toFixed(4)} บาท (${calculateGrams(data.amount)} กรัม)\n\n` +
       `📝 Delivery Details:\n` +
       `- Name: ${data.name}\n` +
       `- Tel: ${data.tel}\n` +
