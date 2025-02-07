@@ -271,11 +271,18 @@ export default function WithdrawPage() {
               <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-[#1a1a1a] text-orange-400' : 'bg-orange-50 text-orange-800'}`}>
                 <p>Important Notes:</p>
                 <ul className={`list-disc ml-4 mt-2 space-y-1 ${theme === 'dark' ? 'text-gray-400' : 'text-orange-800'}`}>
-                  <li>Physical gold withdrawal requires verification</li>
-                  <li>Please contact support to arrange collection</li>
-                  <li>Minimum withdrawal: 1 บาททอง</li>
+                  
+               
+                  
                   <li>Processing time: 1-2 business days</li>
+                  <li>หลังจากกดถอนกรุณา</li>
                 </ul>
+          
+                <p className="text-sm text-blue-500">
+                  <a href="http://m.me/4mangkorntong" target="_blank" rel="noopener noreferrer">
+                    ติดต่อพนักงานเพื่อเลือกทอง
+                  </a>
+                </p>
               </div>
 
               <Button 
