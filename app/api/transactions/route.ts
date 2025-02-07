@@ -171,7 +171,16 @@ export async function POST(request: Request) {
         const remainingAvgCost = Number(newTotalGold.avgCost || 0);
         const profitLoss = totalPrice - (Number(amount) * currentAvgCost);
 
-        // Send Telegram notification with correct remaining amount
+        // Get total balance across all users AFTER the transaction
+        const [totalUserBalance] = await tx
+          .select({
+            total: sql<string>`COALESCE(sum(${userBalances.balance}), '0')`
+          })
+          .from(userBalances)
+          .where(ne(users.role, 'admin'))
+          .leftJoin(users, eq(userBalances.userId, users.id));
+
+        // Send Telegram notification with correct remaining amount and total balance
         await Promise.allSettled([
           sendGoldSaleNotification({
             userName: user.name || user.email,
@@ -180,7 +189,8 @@ export async function POST(request: Request) {
             totalPrice: Number(totalPrice),
             pricePerUnit: Number(pricePerUnit),
             profitLoss,
-            remainingAmount: availableStock
+            remainingAmount: availableStock,
+            totalUserBalance: Number(totalUserBalance.total)
           })
         ]);
 
@@ -260,7 +270,16 @@ export async function POST(request: Request) {
         const userHoldingsAmount = Number(userHoldings?.total || 0);
         const availableStock = adminStockAmount - userHoldingsAmount;
 
-        // Send Telegram notification with correct remaining amount
+        // Get total balance across all users AFTER the transaction
+        const [totalUserBalance] = await tx
+          .select({
+            total: sql<string>`COALESCE(sum(${userBalances.balance}), '0')`
+          })
+          .from(userBalances)
+          .where(ne(users.role, 'admin'))
+          .leftJoin(users, eq(userBalances.userId, users.id));
+
+        // Send Telegram notification with correct remaining amount and total balance
         await Promise.allSettled([
           sendGoldPurchaseNotification({
             userName: user.name || user.email,
@@ -268,7 +287,8 @@ export async function POST(request: Request) {
             amount: Number(amount),
             totalPrice: Number(totalPrice),
             pricePerUnit: Number(pricePerUnit),
-            remainingAmount: availableStock
+            remainingAmount: availableStock,
+            totalUserBalance: Number(totalUserBalance.total)
           })
         ]);
 

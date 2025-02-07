@@ -35,6 +35,7 @@ interface GoldPurchaseNotificationData {
   totalPrice: number;
   pricePerUnit: number;
   remainingAmount?: number;
+  totalUserBalance: number;
 }
 
 interface GoldSaleNotificationData {
@@ -45,6 +46,7 @@ interface GoldSaleNotificationData {
   pricePerUnit: number;
   profitLoss: number;
   remainingAmount?: number;
+  totalUserBalance: number;
 }
 
 interface WithdrawalRequestData {
@@ -134,7 +136,8 @@ export const sendGoldPurchaseNotification = async (data: GoldPurchaseNotificatio
       `📦 Gold Type: ${data.goldType}\n` +
       `💰 Amount: ${data.amount.toFixed(4)} บาท (${calculateGrams(data.amount)} กรัม)\n` +
       `💵 Price/Unit: ฿${data.pricePerUnit.toLocaleString()}\n` +
-      `💎 Total Price: ฿${data.totalPrice.toLocaleString()}`;
+      `💎 Total Price: ฿${data.totalPrice.toLocaleString()}\n\n` +
+      `💎 เงินสดในระบบลูกค้าทั้งหมด: ฿${data.totalUserBalance.toLocaleString()}`;
 
     // Add remaining amount if provided
     if (typeof data.remainingAmount === 'number') {
@@ -184,13 +187,17 @@ export const sendGoldSaleNotification = async (data: GoldSaleNotificationData) =
     const profitLossEmoji = data.profitLoss >= 0 ? '📈' : '📉';
     const profitLossText = data.profitLoss >= 0 ? 'Profit' : 'Loss';
 
+    // Calculate new total balance including the sale amount
+    const updatedTotalBalance = data.totalUserBalance;
+
     let message = `💫 *New Gold Sale!*\n\n` +
       `👤 User: ${data.userName}\n` +
       `📦 Gold Type: ${data.goldType}\n` +
       `💰 Amount: ${data.amount.toFixed(4)} บาท (${calculateGrams(data.amount)} กรัม)\n` +
       `💵 Price/Unit: ฿${data.pricePerUnit.toLocaleString()}\n` +
       `💎 Total Price: ฿${data.totalPrice.toLocaleString()}\n` +
-      `${profitLossEmoji} ${profitLossText}: ฿${Math.abs(data.profitLoss).toLocaleString()}`;
+      `${profitLossEmoji} ${profitLossText}: ฿${Math.abs(data.profitLoss).toLocaleString()}\n\n` +
+      `💎 เงินสดในระบบลูกค้าทั้งหมด: ฿${updatedTotalBalance.toLocaleString()}`;
 
     // Add remaining amount if provided
     if (typeof data.remainingAmount === 'number') {
