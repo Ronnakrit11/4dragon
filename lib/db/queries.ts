@@ -28,6 +28,7 @@ export async function getUser() {
       id: users.id,
       name: users.name,
       email: users.email,
+      phone: users.phone,
       passwordHash: users.passwordHash,
       role: users.role,
       depositLimitId: users.depositLimitId,
@@ -49,7 +50,6 @@ export async function getUser() {
 }
 
 // Rest of the file remains unchanged...
-
 export async function getTeamByStripeCustomerId(customerId: string) {
   const result = await db
     .select()

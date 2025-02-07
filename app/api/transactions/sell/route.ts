@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { userBalances, goldAssets, transactions } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { userBalances, goldAssets, transactions, users } from '@/lib/db/schema';
+import { eq, and, sql, ne } from 'drizzle-orm';
 import { getUser } from '@/lib/db/queries';
 import { sendGoldSaleNotification } from '@/lib/telegram/bot';
+
+const ADMIN_EMAIL = 'adminfortest@gmail.com';
+const GOLD_TYPE = 'ทองสมาคม 96.5%';
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
 
     // Start a transaction
     const result = await db.transaction(async (tx) => {
-      // Calculate total gold holdings and average cost for this type before the sale
+      // Calculate total gold holdings and average cost before the sale
       const [totalGold] = await tx
         .select({
           total: sql<string>`sum(${goldAssets.amount})`,
@@ -103,39 +106,58 @@ export async function POST(request: Request) {
         type: 'sell',
       });
 
-      // Calculate new balances and costs after the sale
+      // Get updated balance
       const [newBalance] = await tx
         .select()
         .from(userBalances)
         .where(eq(userBalances.userId, user.id))
         .limit(1);
 
-      const [newTotalGold] = await tx
+      // Calculate admin's remaining stock
+      const [adminStock] = await tx
         .select({
-          total: sql<string>`sum(${goldAssets.amount})`,
-          totalCost: sql<string>`sum(${goldAssets.amount} * ${goldAssets.purchasePrice})`,
-          avgCost: sql<string>`CASE 
-            WHEN sum(${goldAssets.amount}) > 0 
-            THEN sum(${goldAssets.amount} * ${goldAssets.purchasePrice}) / sum(${goldAssets.amount})
-            ELSE 0 
-          END`
+          total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
         })
         .from(goldAssets)
+        .leftJoin(users, eq(goldAssets.userId, users.id))
         .where(
           and(
-            eq(goldAssets.userId, user.id),
-            eq(goldAssets.goldType, goldType)
+            eq(users.email, ADMIN_EMAIL),
+            eq(goldAssets.goldType, GOLD_TYPE)
           )
         );
 
-      const remainingAmount = Number(newTotalGold.total || 0);
-      const remainingTotalCost = Number(newTotalGold.totalCost || 0);
-      const remainingAvgCost = Number(newTotalGold.avgCost || 0);
+      // Calculate total user holdings (excluding admin)
+      const [userHoldings] = await tx
+        .select({
+          total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
+        })
+        .from(goldAssets)
+        .leftJoin(users, eq(goldAssets.userId, users.id))
+        .where(
+          and(
+            ne(users.email, ADMIN_EMAIL),
+            eq(goldAssets.goldType, GOLD_TYPE)
+          )
+        );
+
+      // Get total balance across all users
+      const [totalUserBalance] = await tx
+        .select({
+          total: sql<string>`COALESCE(sum(${userBalances.balance}), '0')`
+        })
+        .from(userBalances)
+        .leftJoin(users, eq(userBalances.userId, users.id))
+        .where(ne(users.role, 'admin'));
+
+      const adminStockAmount = Number(adminStock?.total || 0);
+      const userHoldingsAmount = Number(userHoldings?.total || 0);
+      const availableStock = adminStockAmount - userHoldingsAmount;
 
       // Calculate profit/loss
       const profitLoss = totalPrice - (Number(amount) * currentAvgCost);
 
-      // Send Telegram notification after transaction is complete
+      // Send Telegram notification with correct remaining amount and total balance
       await Promise.allSettled([
         sendGoldSaleNotification({
           userName: user.name || user.email,
@@ -143,17 +165,15 @@ export async function POST(request: Request) {
           amount: Number(amount),
           totalPrice: Number(totalPrice),
           pricePerUnit: Number(pricePerUnit),
-          profitLoss
+          profitLoss,
+          remainingAmount: availableStock,
+          totalUserBalance: Number(totalUserBalance.total)
         })
       ]);
 
       return {
         balance: newBalance.balance,
-        goldAmount: remainingAmount.toString(),
-        averageCost: remainingAvgCost,
-        totalCost: remainingTotalCost,
-        previousAvgCost: currentAvgCost,
-        previousTotalCost: currentTotalCost
+        goldAmount: availableStock.toString()
       };
     });
 

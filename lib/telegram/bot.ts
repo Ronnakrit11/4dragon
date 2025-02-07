@@ -187,9 +187,6 @@ export const sendGoldSaleNotification = async (data: GoldSaleNotificationData) =
     const profitLossEmoji = data.profitLoss >= 0 ? '📈' : '📉';
     const profitLossText = data.profitLoss >= 0 ? 'Profit' : 'Loss';
 
-    // Calculate new total balance including the sale amount
-    const updatedTotalBalance = data.totalUserBalance;
-
     let message = `💫 *New Gold Sale!*\n\n` +
       `👤 User: ${data.userName}\n` +
       `📦 Gold Type: ${data.goldType}\n` +
@@ -197,7 +194,7 @@ export const sendGoldSaleNotification = async (data: GoldSaleNotificationData) =
       `💵 Price/Unit: ฿${data.pricePerUnit.toLocaleString()}\n` +
       `💎 Total Price: ฿${data.totalPrice.toLocaleString()}\n` +
       `${profitLossEmoji} ${profitLossText}: ฿${Math.abs(data.profitLoss).toLocaleString()}\n\n` +
-      `💎 เงินสดในระบบลูกค้าทั้งหมด: ฿${updatedTotalBalance.toLocaleString()}`;
+      `💎 เงินสดในระบบลูกค้าทั้งหมด: ฿${data.totalUserBalance.toLocaleString()}`;
 
     // Add remaining amount if provided
     if (typeof data.remainingAmount === 'number') {
