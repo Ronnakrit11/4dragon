@@ -22,27 +22,61 @@ const calculateGrams = (bathAmount: number) => {
   return (bathAmount * BAHT_TO_GRAM).toFixed(2);
 };
 
-// Add this new function for deposit notifications
-export async function sendDepositNotification(data: {
+interface DepositNotificationData {
   userName: string;
   amount: number;
   transRef: string;
-}) {
+}
+
+interface GoldPurchaseNotificationData {
+  userName: string;
+  goldType: string;
+  amount: number;
+  totalPrice: number;
+  pricePerUnit: number;
+  remainingAmount?: number;
+}
+
+interface GoldSaleNotificationData {
+  userName: string;
+  goldType: string;
+  amount: number;
+  totalPrice: number;
+  pricePerUnit: number;
+  profitLoss: number;
+  remainingAmount?: number;
+}
+
+interface WithdrawalRequestData {
+  userName: string;
+  amount: number;
+  bank: string;
+  accountNumber: string;
+  accountName: string;
+}
+
+interface GoldWithdrawalNotificationData {
+  userName: string;
+  goldType: string;
+  amount: number;
+  name: string;
+  tel: string;
+  address: string;
+}
+
+export const sendDepositNotification = async (data: DepositNotificationData) => {
   try {
-    // Validate bot token
     if (!process.env.TELEGRAM_BOT_TOKEN) {
       console.error('Missing TELEGRAM_BOT_TOKEN');
       return;
     }
 
-    // Get and validate chat ID
     const chatId = getChatId();
     if (!chatId) {
       console.error('Invalid TELEGRAM_CHAT_ID');
       return;
     }
 
-    // First verify the bot has access to the chat
     try {
       await bot.getChat(chatId);
     } catch (error) {
@@ -73,15 +107,9 @@ export async function sendDepositNotification(data: {
       console.error('Telegram Bot Error:', error);
     }
   }
-}
+};
 
-export async function sendGoldPurchaseNotification(data: {
-  userName: string;
-  goldType: string;
-  amount: number;
-  totalPrice: number;
-  pricePerUnit: number;
-}) {
+export const sendGoldPurchaseNotification = async (data: GoldPurchaseNotificationData) => {
   try {
     if (!process.env.TELEGRAM_BOT_TOKEN) {
       console.error('Missing TELEGRAM_BOT_TOKEN');
@@ -101,12 +129,17 @@ export async function sendGoldPurchaseNotification(data: {
       return;
     }
 
-    const message = `🏆 *New Gold Purchase!*\n\n` +
+    let message = `🏆 *New Gold Purchase!*\n\n` +
       `👤 User: ${data.userName}\n` +
       `📦 Gold Type: ${data.goldType}\n` +
       `💰 Amount: ${data.amount.toFixed(4)} บาท (${calculateGrams(data.amount)} กรัม)\n` +
       `💵 Price/Unit: ฿${data.pricePerUnit.toLocaleString()}\n` +
       `💎 Total Price: ฿${data.totalPrice.toLocaleString()}`;
+
+    // Add remaining amount if provided
+    if (typeof data.remainingAmount === 'number') {
+      message += `\n\n📊 คงเหลือ: ${data.remainingAmount.toFixed(4)} บาท (${calculateGrams(data.remainingAmount)} กรัม)`;
+    }
 
     const result = await bot.sendMessage(chatId, message, {
       parse_mode: 'Markdown',
@@ -126,16 +159,9 @@ export async function sendGoldPurchaseNotification(data: {
       console.error('Telegram Bot Error:', error);
     }
   }
-}
+};
 
-export async function sendGoldSaleNotification(data: {
-  userName: string;
-  goldType: string;
-  amount: number;
-  totalPrice: number;
-  pricePerUnit: number;
-  profitLoss: number;
-}) {
+export const sendGoldSaleNotification = async (data: GoldSaleNotificationData) => {
   try {
     if (!process.env.TELEGRAM_BOT_TOKEN) {
       console.error('Missing TELEGRAM_BOT_TOKEN');
@@ -158,13 +184,18 @@ export async function sendGoldSaleNotification(data: {
     const profitLossEmoji = data.profitLoss >= 0 ? '📈' : '📉';
     const profitLossText = data.profitLoss >= 0 ? 'Profit' : 'Loss';
 
-    const message = `💫 *New Gold Sale!*\n\n` +
+    let message = `💫 *New Gold Sale!*\n\n` +
       `👤 User: ${data.userName}\n` +
       `📦 Gold Type: ${data.goldType}\n` +
       `💰 Amount: ${data.amount.toFixed(4)} บาท (${calculateGrams(data.amount)} กรัม)\n` +
       `💵 Price/Unit: ฿${data.pricePerUnit.toLocaleString()}\n` +
       `💎 Total Price: ฿${data.totalPrice.toLocaleString()}\n` +
       `${profitLossEmoji} ${profitLossText}: ฿${Math.abs(data.profitLoss).toLocaleString()}`;
+
+    // Add remaining amount if provided
+    if (typeof data.remainingAmount === 'number') {
+      message += `\n\n📊 คงเหลือ: ${data.remainingAmount.toFixed(4)} บาท (${calculateGrams(data.remainingAmount)} กรัม)`;
+    }
 
     const result = await bot.sendMessage(chatId, message, {
       parse_mode: 'Markdown',
@@ -184,15 +215,9 @@ export async function sendGoldSaleNotification(data: {
       console.error('Telegram Bot Error:', error);
     }
   }
-}
+};
 
-export async function sendWithdrawalRequestNotification(data: {
-  userName: string;
-  amount: number;
-  bank: string;
-  accountNumber: string;
-  accountName: string;
-}) {
+export const sendWithdrawalRequestNotification = async (data: WithdrawalRequestData) => {
   try {
     if (!process.env.TELEGRAM_BOT_TOKEN) {
       console.error('Missing TELEGRAM_BOT_TOKEN');
@@ -247,16 +272,9 @@ export async function sendWithdrawalRequestNotification(data: {
       console.error('Telegram Bot Error:', error);
     }
   }
-}
+};
 
-export async function sendGoldWithdrawalNotification(data: {
-  userName: string;
-  goldType: string;
-  amount: number;
-  name: string;
-  tel: string;
-  address: string;
-}) {
+export const sendGoldWithdrawalNotification = async (data: GoldWithdrawalNotificationData) => {
   try {
     if (!process.env.TELEGRAM_BOT_TOKEN) {
       console.error('Missing TELEGRAM_BOT_TOKEN');
@@ -303,4 +321,4 @@ export async function sendGoldWithdrawalNotification(data: {
       console.error('Telegram Bot Error:', error);
     }
   }
-}
+};

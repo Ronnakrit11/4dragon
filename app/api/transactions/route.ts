@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { userBalances, goldAssets, transactions, users } from '@/lib/db/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { getUser } from '@/lib/db/queries';
 import { sendGoldPurchaseNotification, sendGoldSaleNotification } from '@/lib/telegram/bot';
 
@@ -19,27 +19,9 @@ export async function POST(request: Request) {
     const data = await request.json();
     const { goldType, amount, pricePerUnit, totalPrice, type } = data;
 
-    if (!['buy', 'sell'].includes(type)) {
-      return NextResponse.json(
-        { error: 'Invalid transaction type' },
-        { status: 400 }
-      );
-    }
-
     // Start a transaction
     const result = await db.transaction(async (tx) => {
       if (type === 'sell') {
-        // Get an admin user for stock management
-        const [admin] = await tx
-          .select()
-          .from(users)
-          .where(eq(users.role, 'admin'))
-          .limit(1);
-
-        if (!admin) {
-          throw new Error('No admin account found for stock management');
-        }
-
         // Calculate total gold holdings and average cost before the sale
         const [totalGold] = await tx
           .select({
@@ -67,7 +49,7 @@ export async function POST(request: Request) {
           throw new Error(`Insufficient gold balance. You have ${currentBalance} units available.`);
         }
 
-        // Process sell transaction
+        // Get all gold assets for this type
         const assets = await tx
           .select()
           .from(goldAssets)
@@ -81,6 +63,7 @@ export async function POST(request: Request) {
 
         let remainingAmountToSell = Number(amount);
         
+        // Process each asset until we've sold the requested amount
         for (const asset of assets) {
           const assetAmount = Number(asset.amount);
           if (assetAmount <= 0) continue;
@@ -97,20 +80,12 @@ export async function POST(request: Request) {
               .where(eq(goldAssets.id, asset.id));
 
             remainingAmountToSell -= amountToSellFromAsset;
-
-            // Add the sold amount back to admin's stock
-            await tx.insert(goldAssets).values({
-              userId: admin.id,
-              goldType,
-              amount: amountToSellFromAsset.toString(),
-              purchasePrice: pricePerUnit.toString(),
-            });
           }
 
           if (remainingAmountToSell <= 0) break;
         }
 
-        // Update user balance for sell
+        // Update user balance
         await tx
           .update(userBalances)
           .set({
@@ -119,7 +94,7 @@ export async function POST(request: Request) {
           })
           .where(eq(userBalances.userId, user.id));
 
-        // Record sell transaction
+        // Record the transaction
         await tx.insert(transactions).values({
           userId: user.id,
           goldType,
@@ -129,13 +104,14 @@ export async function POST(request: Request) {
           type: 'sell',
         });
 
-        // Get updated balances
+        // Get updated balance
         const [newBalance] = await tx
           .select()
           .from(userBalances)
           .where(eq(userBalances.userId, user.id))
           .limit(1);
 
+        // Get new total gold amount after sale
         const [newTotalGold] = await tx
           .select({
             total: sql<string>`sum(${goldAssets.amount})`,
@@ -159,7 +135,7 @@ export async function POST(request: Request) {
         const remainingAvgCost = Number(newTotalGold.avgCost || 0);
         const profitLoss = totalPrice - (Number(amount) * currentAvgCost);
 
-        // Send Telegram notification
+        // Send Telegram notification with remaining amount
         await Promise.allSettled([
           sendGoldSaleNotification({
             userName: user.name || user.email,
@@ -167,7 +143,8 @@ export async function POST(request: Request) {
             amount: Number(amount),
             totalPrice: Number(totalPrice),
             pricePerUnit: Number(pricePerUnit),
-            profitLoss
+            profitLoss,
+            remainingAmount
           })
         ]);
 
@@ -208,34 +185,43 @@ export async function POST(request: Request) {
           type: 'buy',
         });
 
-        // Get updated balances
+        // Get updated balance
         const [newBalance] = await tx
           .select()
           .from(userBalances)
           .where(eq(userBalances.userId, user.id))
           .limit(1);
 
-        const [newAsset] = await tx
-          .select()
+        // Get total gold amount after purchase
+        const [totalGold] = await tx
+          .select({
+            total: sql<string>`sum(${goldAssets.amount})`
+          })
           .from(goldAssets)
-          .where(eq(goldAssets.userId, user.id))
-          .orderBy(sql`${goldAssets.createdAt} DESC`)
-          .limit(1);
+          .where(
+            and(
+              eq(goldAssets.userId, user.id),
+              eq(goldAssets.goldType, goldType)
+            )
+          );
 
-        // Send Telegram notification
+        const totalAmount = Number(totalGold?.total || 0);
+
+        // Send Telegram notification with total amount
         await Promise.allSettled([
           sendGoldPurchaseNotification({
             userName: user.name || user.email,
             goldType,
             amount: Number(amount),
             totalPrice: Number(totalPrice),
-            pricePerUnit: Number(pricePerUnit)
+            pricePerUnit: Number(pricePerUnit),
+            remainingAmount: totalAmount
           })
         ]);
 
         return {
           balance: newBalance.balance,
-          goldAmount: newAsset.amount
+          goldAmount: totalAmount.toString()
         };
       }
     });
