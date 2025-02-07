@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { userBalances, goldAssets, transactions, users } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, ne } from 'drizzle-orm';
 import { getUser } from '@/lib/db/queries';
 import { sendGoldPurchaseNotification, sendGoldSaleNotification } from '@/lib/telegram/bot';
 import { pusherServer } from '@/lib/pusher';
 
 const GOLD_TYPE = 'ทองสมาคม 96.5%';
-const ADMIN_EMAIL = 'ronnakritnook1@gmail.com';
+const ADMIN_EMAIL = 'adminfortest@gmail.com';
 
 export async function POST(request: Request) {
   try {
@@ -115,7 +115,39 @@ export async function POST(request: Request) {
           .where(eq(userBalances.userId, user.id))
           .limit(1);
 
-        // Get new total gold amount after sale
+        // Calculate admin's remaining stock
+        const [adminStock] = await tx
+          .select({
+            total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
+          })
+          .from(goldAssets)
+          .leftJoin(users, eq(goldAssets.userId, users.id))
+          .where(
+            and(
+              eq(users.email, ADMIN_EMAIL),
+              eq(goldAssets.goldType, GOLD_TYPE)
+            )
+          );
+
+        // Calculate total user holdings (excluding admin)
+        const [userHoldings] = await tx
+          .select({
+            total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
+          })
+          .from(goldAssets)
+          .leftJoin(users, eq(goldAssets.userId, users.id))
+          .where(
+            and(
+              ne(users.email, ADMIN_EMAIL),
+              eq(goldAssets.goldType, GOLD_TYPE)
+            )
+          );
+
+        const adminStockAmount = Number(adminStock?.total || 0);
+        const userHoldingsAmount = Number(userHoldings?.total || 0);
+        const availableStock = adminStockAmount - userHoldingsAmount;
+
+        // Get new total gold amount after sale for user
         const [newTotalGold] = await tx
           .select({
             total: sql<string>`sum(${goldAssets.amount})`,
@@ -134,27 +166,12 @@ export async function POST(request: Request) {
             )
           );
 
-        // Get admin's remaining stock
-        const [adminStock] = await tx
-          .select({
-            total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
-          })
-          .from(goldAssets)
-          .leftJoin(users, eq(goldAssets.userId, users.id))
-          .where(
-            and(
-              eq(users.email, ADMIN_EMAIL),
-              eq(goldAssets.goldType, GOLD_TYPE)
-            )
-          );
-
-        const adminStockAmount = Number(adminStock?.total || 0);
         const remainingAmount = Number(newTotalGold.total || 0);
         const remainingTotalCost = Number(newTotalGold.totalCost || 0);
         const remainingAvgCost = Number(newTotalGold.avgCost || 0);
         const profitLoss = totalPrice - (Number(amount) * currentAvgCost);
 
-        // Send Telegram notification with admin's remaining stock
+        // Send Telegram notification with correct remaining amount
         await Promise.allSettled([
           sendGoldSaleNotification({
             userName: user.name || user.email,
@@ -163,7 +180,7 @@ export async function POST(request: Request) {
             totalPrice: Number(totalPrice),
             pricePerUnit: Number(pricePerUnit),
             profitLoss,
-            remainingAmount: adminStockAmount
+            remainingAmount: availableStock
           })
         ]);
 
@@ -211,7 +228,7 @@ export async function POST(request: Request) {
           .where(eq(userBalances.userId, user.id))
           .limit(1);
 
-        // Get admin's remaining stock
+        // Calculate admin's remaining stock
         const [adminStock] = await tx
           .select({
             total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
@@ -225,9 +242,25 @@ export async function POST(request: Request) {
             )
           );
 
-        const adminStockAmount = Number(adminStock?.total || 0);
+        // Calculate total user holdings (excluding admin)
+        const [userHoldings] = await tx
+          .select({
+            total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
+          })
+          .from(goldAssets)
+          .leftJoin(users, eq(goldAssets.userId, users.id))
+          .where(
+            and(
+              ne(users.email, ADMIN_EMAIL),
+              eq(goldAssets.goldType, GOLD_TYPE)
+            )
+          );
 
-        // Send Telegram notification with admin's remaining stock
+        const adminStockAmount = Number(adminStock?.total || 0);
+        const userHoldingsAmount = Number(userHoldings?.total || 0);
+        const availableStock = adminStockAmount - userHoldingsAmount;
+
+        // Send Telegram notification with correct remaining amount
         await Promise.allSettled([
           sendGoldPurchaseNotification({
             userName: user.name || user.email,
@@ -235,13 +268,13 @@ export async function POST(request: Request) {
             amount: Number(amount),
             totalPrice: Number(totalPrice),
             pricePerUnit: Number(pricePerUnit),
-            remainingAmount: adminStockAmount
+            remainingAmount: availableStock
           })
         ]);
 
         return {
           balance: newBalance.balance,
-          goldAmount: adminStockAmount.toString()
+          goldAmount: availableStock.toString()
         };
       }
     });
