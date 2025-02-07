@@ -4,12 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Wallet, Loader2 , Upload } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Wallet, Loader2, Upload } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/auth';
 import Image from 'next/image';
 import { useTheme } from '@/lib/theme-provider';
+
+interface BankAccount {
+  bank: string;
+  accountNumber: string;
+  accountName: string;
+}
 
 interface VerifiedSlip {
   id: number;
@@ -35,6 +42,7 @@ export default function DepositPage() {
   const [recentDeposits, setRecentDeposits] = useState<VerifiedSlip[]>([]);
   const [balance, setBalance] = useState(0);
   const [depositLimit, setDepositLimit] = useState<DepositLimit | null>(null);
+  const [showLimitDialog, setShowLimitDialog] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
@@ -73,13 +81,13 @@ export default function DepositPage() {
       toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
       return;
     }
-
+  
     const amountNum = Number(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       toast.error('กรุณากรอกจำนวนเงินที่ถูกต้อง');
       return;
     }
-
+  
     if (depositLimit) {
       const dailyLimit = Number(depositLimit.dailyLimit);
       const remainingLimit = dailyLimit - balance;
@@ -187,8 +195,45 @@ export default function DepositPage() {
   const canDeposit = Boolean(depositLimit && (!amount || (amountNum > 0 && amountNum <= remainingLimit)));
   const showLimitError = Boolean(amount && amountNum > 0 && !canDeposit);
 
+  if (!depositLimit) {
+    return (
+      <section className="flex-1 p-4 lg:p-8">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+          <p className="mt-2">Loading deposit limits...</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="flex-1 p-4 lg:p-8">
+      <Dialog open={showLimitDialog} onOpenChange={setShowLimitDialog}>
+        <DialogContent className={theme === 'dark' ? 'bg-[#151515] border-[#2A2A2A]' : ''}>
+          <DialogHeader>
+            <DialogTitle className={theme === 'dark' ? 'text-white' : ''}>วงเงินการฝาก</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className={`p-4 rounded-lg ${theme === 'dark' ? 'bg-[#1a1a1a]' : 'bg-gray-50'}`}>
+              <p className={`font-medium mb-2 ${theme === 'dark' ? 'text-white' : ''}`}>
+                ระดับวงเงิน: {depositLimit.name}
+              </p>
+              <div className={`space-y-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                <p>วงเงินลิมิต: ฿{Number(depositLimit.dailyLimit).toLocaleString()}</p>
+                <p>เงินสดในพอร์ต: ฿{balance.toLocaleString()}</p>
+                <p>วงเงินคงเหลือที่สามารถฝากได้: ฿{Math.max(0, remainingLimit).toLocaleString()}</p>
+              </div>
+            </div>
+            <Button 
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+              onClick={() => setShowLimitDialog(false)}
+            >
+              ตกลง
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <h1 className={`text-lg lg:text-2xl font-medium mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
         Deposit Funds
       </h1>
