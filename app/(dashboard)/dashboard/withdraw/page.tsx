@@ -17,15 +17,18 @@ interface GoldAsset {
   purchasePrice: string;
 }
 
-interface RawGoldAsset {
-  goldType: string;
-  amount: string;
-  purchasePrice: string;
+interface RawGoldAsset extends GoldAsset {
   userId: number;
   id: number;
   createdAt: string;
   updatedAt: string;
 }
+
+const BAHT_TO_GRAM = 15.2; // 1 baht = 15.2 grams for 96.5% gold
+
+const calculateBaht = (gramAmount: number) => {
+  return (gramAmount / BAHT_TO_GRAM).toFixed(4);
+};
 
 export default function WithdrawPage() {
   const { user } = useUser();
@@ -33,7 +36,7 @@ export default function WithdrawPage() {
   const [assets, setAssets] = useState<GoldAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [gramAmount, setGramAmount] = useState('');
   const [contactDetails, setContactDetails] = useState({
     name: '',
     tel: '',
@@ -46,7 +49,7 @@ export default function WithdrawPage() {
       try {
         const response = await fetch('/api/gold-assets');
         if (response.ok) {
-          const goldAssets = (await response.json()) as RawGoldAsset[];
+          const goldAssets = await response.json() as RawGoldAsset[];
           
           // Combine assets of the same type
           const combinedAssets = goldAssets.reduce<Record<string, GoldAsset>>((acc, asset) => {
@@ -66,10 +69,7 @@ export default function WithdrawPage() {
           }, {});
 
           // Convert to array and filter out zero amounts
-          const assetsArray = Object.values(combinedAssets).filter(
-            (asset): asset is GoldAsset => Number(asset.amount) > 0
-          );
-          
+          const assetsArray = Object.values(combinedAssets);
           setAssets(assetsArray);
         }
       } catch (error) {
@@ -88,7 +88,7 @@ export default function WithdrawPage() {
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedAsset || !withdrawAmount) {
+    if (!selectedAsset || !gramAmount) {
       toast.error('Please select an asset and enter withdrawal amount');
       return;
     }
@@ -103,8 +103,9 @@ export default function WithdrawPage() {
       toast.error('Selected asset not found');
       return;
     }
-  
-    if (Number(withdrawAmount) > Number(asset.amount)) {
+
+    const bathAmount = calculateBaht(Number(gramAmount));
+    if (Number(bathAmount) > Number(asset.amount)) {
       toast.error('Withdrawal amount exceeds available balance');
       return;
     }
@@ -119,7 +120,7 @@ export default function WithdrawPage() {
         },
         body: JSON.stringify({
           goldType: selectedAsset,
-          amount: withdrawAmount,
+          amount: bathAmount,
           ...contactDetails
         }),
       });
@@ -141,7 +142,7 @@ export default function WithdrawPage() {
   
       toast.success('Withdrawal request submitted successfully');
       setSelectedAsset(null);
-      setWithdrawAmount('');
+      setGramAmount('');
       setContactDetails({ name: '', tel: '', address: '' });
     } catch (error) {
       console.error('Error submitting withdrawal:', error);
@@ -191,7 +192,10 @@ export default function WithdrawPage() {
                         />
                         <div className="flex flex-col items-start">
                           <span>{asset.goldType}</span>
-                          <span className="text-sm opacity-75">Available: {Number(asset.amount).toFixed(4)} บาท</span>
+                          <div className="text-sm opacity-75">
+                            <p>Available: {Number(asset.amount).toFixed(4)} บาท</p>
+                            <p>({(Number(asset.amount) * BAHT_TO_GRAM).toFixed(2)} กรัม)</p>
+                          </div>
                         </div>
                       </div>
                     </Button>
@@ -201,23 +205,28 @@ export default function WithdrawPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="amount" className={theme === 'dark' ? 'text-white' : ''}>
-                  Withdrawal Amount (บาททอง)
+                  Withdrawal Amount (กรัม)
                 </Label>
                 <Input
                   id="amount"
                   type="number"
-                  step="0.0001"
-                  value={withdrawAmount}
+                  step="0.01"
+                  value={gramAmount}
                   onChange={(e) => {
                     const value = e.target.value;
                     const asset = assets.find(a => a.goldType === selectedAsset);
-                    if (!asset || Number(value) <= Number(asset.amount)) {
-                      setWithdrawAmount(value);
+                    if (!asset || Number(calculateBaht(Number(value))) <= Number(asset.amount)) {
+                      setGramAmount(value);
                     }
                   }}
-                  placeholder="Enter amount to withdraw"
+                  placeholder="Enter amount in grams"
                   className={`text-lg ${theme === 'dark' ? 'bg-[#1a1a1a] border-[#2A2A2A] text-white' : ''}`}
                 />
+                {gramAmount && (
+                  <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                    = {calculateBaht(Number(gramAmount))} บาททอง
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -272,7 +281,7 @@ export default function WithdrawPage() {
               <Button 
                 type="submit" 
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                disabled={!selectedAsset || !withdrawAmount || Number(withdrawAmount) <= 0 || isSubmitting}
+                disabled={!selectedAsset || !gramAmount || Number(gramAmount) <= 0 || isSubmitting}
               >
                 {isSubmitting ? (
                   <>
