@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { userBalances, goldAssets, transactions } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { userBalances, goldAssets, transactions, users } from '@/lib/db/schema';
+import { eq, sql, ne, and } from 'drizzle-orm';
 import { getUser } from '@/lib/db/queries';
 import { sendGoldPurchaseNotification } from '@/lib/telegram/bot';
+
+const ADMIN_EMAIL = 'adminfortest@gmail.com';
+const GOLD_TYPE = 'ทองสมาคม 96.5%';
 
 export async function POST(request: Request) {
   try {
@@ -30,7 +33,7 @@ export async function POST(request: Request) {
         })
         .where(eq(userBalances.userId, user.id));
 
-      // Always create a new gold asset record for each purchase
+      // Create new gold asset record
       await tx.insert(goldAssets).values({
         userId: user.id,
         goldType,
@@ -38,7 +41,7 @@ export async function POST(request: Request) {
         purchasePrice: pricePerUnit,
       });
 
-      // Record the transaction
+      // Record buy transaction
       await tx.insert(transactions).values({
         userId: user.id,
         goldType,
@@ -48,37 +51,72 @@ export async function POST(request: Request) {
         type: 'buy',
       });
 
-      // Return updated balances
+      // Get updated balance
       const [newBalance] = await tx
         .select()
         .from(userBalances)
         .where(eq(userBalances.userId, user.id))
         .limit(1);
 
-      const [newAsset] = await tx
-        .select()
+      // Calculate admin's remaining stock
+      const [adminStock] = await tx
+        .select({
+          total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
+        })
         .from(goldAssets)
-        .where(eq(goldAssets.userId, user.id))
-        .orderBy(sql`${goldAssets.createdAt} DESC`)
-        .limit(1);
+        .leftJoin(users, eq(goldAssets.userId, users.id))
+        .where(
+          and(
+            eq(users.email, ADMIN_EMAIL),
+            eq(goldAssets.goldType, GOLD_TYPE)
+          )
+        );
+
+      // Calculate total user holdings (excluding admin)
+      const [userHoldings] = await tx
+        .select({
+          total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
+        })
+        .from(goldAssets)
+        .leftJoin(users, eq(goldAssets.userId, users.id))
+        .where(
+          and(
+            ne(users.email, ADMIN_EMAIL),
+            eq(goldAssets.goldType, GOLD_TYPE)
+          )
+        );
+
+      // Get total balance across all users
+      const [totalUserBalance] = await tx
+        .select({
+          total: sql<string>`COALESCE(sum(${userBalances.balance}), '0')`
+        })
+        .from(userBalances)
+        .leftJoin(users, eq(userBalances.userId, users.id))
+        .where(ne(users.role, 'admin'));
+
+      const adminStockAmount = Number(adminStock?.total || 0);
+      const userHoldingsAmount = Number(userHoldings?.total || 0);
+      const availableStock = adminStockAmount - userHoldingsAmount;
+
+      // Send Telegram notification with correct remaining amount and total balance
+      await Promise.allSettled([
+        sendGoldPurchaseNotification({
+          userName: user.name || user.email,
+          goldType,
+          amount: Number(amount),
+          totalPrice: Number(totalPrice),
+          pricePerUnit: Number(pricePerUnit),
+          remainingAmount: availableStock,
+          totalUserBalance: Number(totalUserBalance.total)
+        })
+      ]);
 
       return {
         balance: newBalance.balance,
-        goldAmount: newAsset.amount
+        goldAmount: availableStock.toString()
       };
     });
-
-    // Send Telegram notification after transaction is complete
-    // Use Promise.allSettled to prevent notification errors from affecting the response
-    await Promise.allSettled([
-      sendGoldPurchaseNotification({
-        userName: user.name || user.email,
-        goldType,
-        amount: Number(amount),
-        totalPrice: Number(totalPrice),
-        pricePerUnit: Number(pricePerUnit)
-      })
-    ]);
 
     return NextResponse.json({
       success: true,
@@ -87,7 +125,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error processing gold purchase:', error);
     return NextResponse.json(
-      { error: 'Failed to process purchase' },
+      { error: error instanceof Error ? error.message : 'Failed to process purchase' },
       { status: 500 }
     );
   }
