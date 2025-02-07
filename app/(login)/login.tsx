@@ -20,6 +20,8 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     mode === 'signin' ? signIn : signUp,
@@ -37,6 +39,10 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
     const formData = new FormData();
     formData.append('email', email);
     formData.append('password', password);
+    if (mode === 'signup') {
+      formData.append('name', name);
+      formData.append('phone', phone);
+    }
     if (showTwoFactor) {
       formData.append('twoFactorCode', twoFactorCode);
     }
@@ -66,6 +72,53 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
         <form className="space-y-6" onSubmit={handleSubmit}>
           {!showTwoFactor ? (
             <>
+              {mode === 'signup' && (
+                <>
+                  <div>
+                    <Label
+                      htmlFor="name"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      ชื่อ-สกุล
+                    </Label>
+                    <div className="mt-1">
+                      <Input
+                        id="name"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        maxLength={100}
+                        className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+                        placeholder="ระบุชื่อ-นามสกุล"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label
+                      htmlFor="phone"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      เบอร์ติดต่อ
+                    </Label>
+                    <div className="mt-1">
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                        maxLength={10}
+                        pattern="[0-9]{10}"
+                        className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
+                        placeholder="ระบุเบอร์โทรศัพท์ 10 หลัก"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
               <div>
                 <Label
                   htmlFor="email"

@@ -37,6 +37,7 @@ export default async function CustomersPage() {
       id: users.id,
       name: users.name,
       email: users.email,
+      phone: users.phone,
       role: users.role,
       createdAt: users.createdAt,
       depositLimitId: users.depositLimitId,

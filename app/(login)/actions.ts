@@ -121,11 +121,13 @@ export const signIn = validatedAction(signInSchema, async (data, formData): Prom
 const signUpSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  name: z.string().min(1, "Name is required"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
   inviteId: z.string().optional(),
 });
 
 export const signUp = validatedAction(signUpSchema, async (data, formData): Promise<ActionState> => {
-  const { email, password, inviteId } = data;
+  const { email, password, name, phone, inviteId } = data;
 
   const existingUser = await db
     .select()
@@ -148,9 +150,11 @@ export const signUp = validatedAction(signUpSchema, async (data, formData): Prom
 
   const newUser: NewUser = {
     email,
+    name,
+    phone,
     passwordHash,
     role: email === ADMIN_EMAIL ? 'owner' : 'member',
-    depositLimitId: defaultLimit?.id, // Set default deposit limit
+    depositLimitId: defaultLimit?.id,
   };
 
   const [createdUser] = await db.insert(users).values(newUser).returning();

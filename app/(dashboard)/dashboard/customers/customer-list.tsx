@@ -9,6 +9,7 @@ interface User {
   id: number;
   name: string | null;
   email: string;
+  phone: string | null;
   role: string;
   createdAt: Date;
   depositLimitId?: number | null;
@@ -103,6 +104,11 @@ export function CustomerList({ users, depositLimits }: CustomerListProps) {
                     {user.name || 'Unnamed User'}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
+                  {user.phone && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      เบอร์ติดต่อ: {user.phone}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center space-x-4">
