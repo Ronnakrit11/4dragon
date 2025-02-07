@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Wallet, Loader2, Upload } from 'lucide-react';
+import { Wallet, Loader2, Upload, Copy, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useUser } from '@/lib/auth';
@@ -43,6 +43,7 @@ export default function DepositPage() {
   const [balance, setBalance] = useState(0);
   const [depositLimit, setDepositLimit] = useState<DepositLimit | null>(null);
   const [showLimitDialog, setShowLimitDialog] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -173,11 +174,19 @@ export default function DepositPage() {
     }
   };
 
+  const handleCopyAccountNumber = () => {
+    navigator.clipboard.writeText('192-2-95245-7');
+    setCopied(true);
+    toast.success('คัดลอกเลขบัญชีแล้ว');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const paymentMethods = [
     {
       id: 'bank',
       name: 'Bank Transfer',
-      accountInfo: 'Bank: 192-2-95245-7\nนายบรรณศาสตร์ วงษ์วิจิตสุข'
+      accountNumber: '192-2-95245-7',
+      accountName: 'นายบรรณศาสตร์ วงษ์วิจิตสุข'
     }
   ];
 
@@ -222,6 +231,11 @@ export default function DepositPage() {
                 <p>วงเงินลิมิต: ฿{Number(depositLimit.dailyLimit).toLocaleString()}</p>
                 <p>เงินสดในพอร์ต: ฿{balance.toLocaleString()}</p>
                 <p>วงเงินคงเหลือที่สามารถฝากได้: ฿{Math.max(0, remainingLimit).toLocaleString()}</p>
+                <p className="text-sm text-blue-500">
+                  <a href="http://m.me/4mangkorntong" target="_blank" rel="noopener noreferrer">
+                    ติดต่อพนักงานเพื่อปลดลิมิต
+                  </a>
+                </p>
               </div>
             </div>
             <Button 
@@ -300,9 +314,30 @@ export default function DepositPage() {
                           height={60}
                           className="rounded-md"
                         />
-                        <div className="flex flex-col items-start">
+                        <div className="flex flex-col items-start flex-grow">
                           <span>{method.name}</span>
-                          <span className="text-sm opacity-75 whitespace-pre-line">{method.accountInfo}</span>
+                          <div className="flex items-center justify-between w-full mt-1">
+                            <div>
+                              <p className="text-sm opacity-75">Bank: {method.accountNumber}</p>
+                              <p className="text-sm opacity-75">{method.accountName}</p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className={`ml-2 ${theme === 'dark' ? 'hover:bg-[#252525]' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyAccountNumber();
+                              }}
+                            >
+                              {copied ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </Button>
