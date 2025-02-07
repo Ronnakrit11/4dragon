@@ -4,6 +4,10 @@ import { userBalances, goldAssets, transactions, users } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { getUser } from '@/lib/db/queries';
 import { sendGoldPurchaseNotification, sendGoldSaleNotification } from '@/lib/telegram/bot';
+import { pusherServer } from '@/lib/pusher';
+
+const GOLD_TYPE = 'ทองสมาคม 96.5%';
+const ADMIN_EMAIL = 'ronnakritnook1@gmail.com';
 
 export async function POST(request: Request) {
   try {
@@ -130,12 +134,27 @@ export async function POST(request: Request) {
             )
           );
 
+        // Get admin's remaining stock
+        const [adminStock] = await tx
+          .select({
+            total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
+          })
+          .from(goldAssets)
+          .leftJoin(users, eq(goldAssets.userId, users.id))
+          .where(
+            and(
+              eq(users.email, ADMIN_EMAIL),
+              eq(goldAssets.goldType, GOLD_TYPE)
+            )
+          );
+
+        const adminStockAmount = Number(adminStock?.total || 0);
         const remainingAmount = Number(newTotalGold.total || 0);
         const remainingTotalCost = Number(newTotalGold.totalCost || 0);
         const remainingAvgCost = Number(newTotalGold.avgCost || 0);
         const profitLoss = totalPrice - (Number(amount) * currentAvgCost);
 
-        // Send Telegram notification with remaining amount
+        // Send Telegram notification with admin's remaining stock
         await Promise.allSettled([
           sendGoldSaleNotification({
             userName: user.name || user.email,
@@ -144,7 +163,7 @@ export async function POST(request: Request) {
             totalPrice: Number(totalPrice),
             pricePerUnit: Number(pricePerUnit),
             profitLoss,
-            remainingAmount
+            remainingAmount: adminStockAmount
           })
         ]);
 
@@ -192,22 +211,23 @@ export async function POST(request: Request) {
           .where(eq(userBalances.userId, user.id))
           .limit(1);
 
-        // Get total gold amount after purchase
-        const [totalGold] = await tx
+        // Get admin's remaining stock
+        const [adminStock] = await tx
           .select({
-            total: sql<string>`sum(${goldAssets.amount})`
+            total: sql<string>`COALESCE(sum(${goldAssets.amount}), '0')`
           })
           .from(goldAssets)
+          .leftJoin(users, eq(goldAssets.userId, users.id))
           .where(
             and(
-              eq(goldAssets.userId, user.id),
-              eq(goldAssets.goldType, goldType)
+              eq(users.email, ADMIN_EMAIL),
+              eq(goldAssets.goldType, GOLD_TYPE)
             )
           );
 
-        const totalAmount = Number(totalGold?.total || 0);
+        const adminStockAmount = Number(adminStock?.total || 0);
 
-        // Send Telegram notification with total amount
+        // Send Telegram notification with admin's remaining stock
         await Promise.allSettled([
           sendGoldPurchaseNotification({
             userName: user.name || user.email,
@@ -215,15 +235,22 @@ export async function POST(request: Request) {
             amount: Number(amount),
             totalPrice: Number(totalPrice),
             pricePerUnit: Number(pricePerUnit),
-            remainingAmount: totalAmount
+            remainingAmount: adminStockAmount
           })
         ]);
 
         return {
           balance: newBalance.balance,
-          goldAmount: totalAmount.toString()
+          goldAmount: adminStockAmount.toString()
         };
       }
+    });
+
+    // After successful transaction, trigger Pusher event
+    await pusherServer.trigger('gold-transactions', 'transaction', {
+      type,
+      amount,
+      timestamp: new Date().toISOString()
     });
 
     return NextResponse.json({

@@ -5,6 +5,7 @@ import { ShieldAlert, PiggyBank, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useUser } from '@/lib/auth';
 import { useTheme } from '@/lib/theme-provider';
+import { pusherClient } from '@/lib/pusher';
 
 interface GoldHolding {
   goldType: string;
@@ -29,6 +30,13 @@ interface SummaryData {
   adminStock: string;
 }
 
+interface GoldAsset {
+  goldType: string;
+  amount: string;
+  purchasePrice: string;
+  userId: number;
+}
+
 const BAHT_TO_GRAM = 15.2; // 1 baht = 15.2 grams for 96.5% gold
 const GOLD_TYPE = 'ทองสมาคม 96.5%';
 
@@ -45,67 +53,88 @@ const SavingsSummaryPage = () => {
     amount: 0,
     grams: 0
   });
+  const [totalUserGoldAmount, setTotalUserGoldAmount] = useState(0);
   const isDark = theme === 'dark';
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [summaryResponse, assetsResponse] = await Promise.all([
-          fetch('/api/admin/savings-summary'),
-          fetch('/api/gold-assets')
+  const fetchData = async () => {
+    try {
+      const [summaryResponse, assetsResponse] = await Promise.all([
+        fetch('/api/admin/savings-summary'),
+        fetch('/api/gold-assets')
+      ]);
+
+      if (summaryResponse.ok && assetsResponse.ok) {
+        const [summaryData, assetsData] = await Promise.all([
+          summaryResponse.json(),
+          assetsResponse.json()
         ]);
 
-        if (summaryResponse.ok && assetsResponse.ok) {
-          const [summaryData, assetsData] = await Promise.all([
-            summaryResponse.json(),
-            assetsResponse.json()
-          ]);
+        // Calculate admin's total stock from assets
+        const adminAssets = (assetsData as GoldAsset[]).filter(asset => 
+          asset.goldType === GOLD_TYPE
+        );
 
-          // Calculate admin's total stock from assets
-          const adminAssets = assetsData.filter((asset: any) => 
-            asset.goldType === GOLD_TYPE
-          );
+        const totalStock = adminAssets.reduce((total: number, asset: GoldAsset) => 
+          total + Number(asset.amount), 0
+        );
 
-          const totalStock = adminAssets.reduce((total: number, asset: any) => 
-            total + Number(asset.amount), 0
-          );
+        setAdminStock({
+          amount: totalStock,
+          grams: Number(calculateGrams(totalStock))
+        });
 
-          setAdminStock({
-            amount: totalStock,
-            grams: Number(calculateGrams(totalStock))
-          });
+        // Filter user summaries to only include the correct gold type
+        const filteredSummaries = summaryData.userSummaries.filter(
+          (summary: UserSummary) => summary.goldType === GOLD_TYPE && summary.userRole !== 'admin'
+        );
 
-          // Filter user summaries to only include the correct gold type
-          const filteredSummaries = summaryData.userSummaries.filter(
-            (summary: UserSummary) => summary.goldType === GOLD_TYPE && summary.userRole !== 'admin'
-          );
+        // Group summaries by user and combine amounts
+        const groupedSummaries = filteredSummaries.reduce((acc: UserSummary[], summary: UserSummary) => {
+          const existingUser = acc.find(s => s.userId === summary.userId);
+          if (existingUser) {
+            existingUser.totalAmount = (Number(existingUser.totalAmount) + Number(summary.totalAmount)).toString();
+            existingUser.totalValue = (Number(existingUser.totalValue) + Number(summary.totalValue)).toString();
+          } else if (Number(summary.totalAmount) > 0) {
+            acc.push(summary);
+          }
+          return acc;
+        }, []);
 
-          // Group summaries by user and combine amounts
-          const groupedSummaries = filteredSummaries.reduce((acc: UserSummary[], summary: UserSummary) => {
-            const existingUser = acc.find(s => s.userId === summary.userId);
-            if (existingUser) {
-              existingUser.totalAmount = (Number(existingUser.totalAmount) + Number(summary.totalAmount)).toString();
-              existingUser.totalValue = (Number(existingUser.totalValue) + Number(summary.totalValue)).toString();
-            } else if (Number(summary.totalAmount) > 0) {
-              acc.push(summary);
-            }
-            return acc;
-          }, []);
+        setSummaryData({
+          ...summaryData,
+          userSummaries: groupedSummaries
+        });
 
-          setSummaryData({
-            ...summaryData,
-            userSummaries: groupedSummaries
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
+        // Calculate total user gold amount
+        const totalUserAmount = groupedSummaries.reduce(
+          (sum: number, summary: UserSummary) => sum + Number(summary.totalAmount),
+          0
+        );
+        setTotalUserGoldAmount(totalUserAmount);
       }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     if (user) {
       fetchData();
+
+      // Subscribe to real-time updates
+      const channel = pusherClient.subscribe('gold-transactions');
+      
+      // Listen for buy/sell transactions
+      channel.bind('transaction', () => {
+        fetchData();
+      });
+
+      return () => {
+        channel.unbind_all();
+        pusherClient.unsubscribe('gold-transactions');
+      };
     }
   }, [user]);
 
@@ -144,12 +173,6 @@ const SavingsSummaryPage = () => {
       </section>
     );
   }
-
-  // Calculate total gold amount held by users (excluding admin)
-  const totalUserGoldAmount = summaryData.userSummaries.reduce(
-    (sum, summary) => sum + Number(summary.totalAmount),
-    0
-  );
 
   return (
     <section className="flex-1 p-4 lg:p-8">
